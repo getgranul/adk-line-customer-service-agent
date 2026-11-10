@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "line-customer-service-agent"
+version = "0.1.0"
+description = "A LINE customer service agent with explicit human handoff."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi==0.162.0",
+    "uvicorn==0.54.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

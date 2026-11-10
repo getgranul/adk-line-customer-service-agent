@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADK Customer Service Agent｜架構與實作相依性</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    :root { --paper: #f5f5f5; --ink: #2d3142; --muted: #4f5d75; --accent: #bf4520; --rule: #bfc0c0; --link: #2e5aa8; }
+    html { scroll-behavior: auto; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: 'Geist', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; line-height: 1.75; }
+    main { max-width: 1440px; min-width: 0; margin: 0 auto; padding: 40px 32px 64px; }
+    header { max-width: 1100px; }
+    .eyebrow { font: 500 11px 'Geist Mono', monospace; color: var(--muted); letter-spacing: 0.12em; }
+    h1 { font-family: 'Instrument Serif', 'Noto Serif TC', serif; font-size: 36px; font-weight: 400; line-height: 1.35; margin: 12px 0 16px; }
+    h2 { font-family: 'Instrument Serif', 'Noto Serif TC', serif; font-size: 28px; font-weight: 400; margin: 0 0 12px; }
+    h3 { font-size: 17px; font-weight: 600; margin: 24px 0 8px; }
+    p { margin: 8px 0 16px; max-width: 1120px; }
+    a { color: var(--link); text-underline-offset: 3px; }
+    code { font-family: 'Geist Mono', monospace; font-size: 0.9em; overflow-wrap: anywhere; }
+    nav { display: flex; flex-wrap: wrap; gap: 12px 28px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 14px 0; margin-top: 28px; }
+    section { margin-top: 52px; scroll-margin-top: 24px; }
+    .note { border-left: 3px solid var(--accent); padding: 8px 20px; margin: 24px 0; }
+    .note p { margin: 0; }
+    .diagram-container, .table-container { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; }
+    svg { display: block; width: 100%; min-width: 1280px; height: auto; }
+    svg text { font-family: 'Geist', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; font-size: 12px; fill: var(--ink); }
+    .diagram-title { font-family: 'Instrument Serif', 'Noto Serif TC', serif; font-size: 28px; font-weight: 400; fill: #111111; }
+    .name { font-weight: 600; }
+    .muted { fill: var(--muted); }
+    .technical { font-family: 'Geist Mono', monospace; }
+    .box { fill: #ffffff; stroke: var(--ink); stroke-width: 1; }
+    .external { fill: #ececec; stroke: var(--muted); stroke-width: 1; }
+    .store { fill: #ececec; stroke: var(--muted); stroke-width: 1.2; }
+    .focal { fill: #f5f5f5; stroke: var(--accent); stroke-width: 1.5; }
+    .zone { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 5 4; }
+    .edge { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+    .http { stroke: var(--link); }
+    .async { stroke-dasharray: 5 4; }
+    .label-mask { fill: var(--paper); }
+    .badge { fill: #ececec; }
+    .badge-text { font-family: 'Geist Mono', monospace; font-size: 8px; fill: var(--muted); }
+    .rule { stroke: var(--rule); stroke-width: 1; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0 20px; min-width: 760px; }
+    th, td { padding: 12px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+    th { color: var(--muted); font-weight: 600; background: #ececec; }
+    td:first-child { min-width: 150px; font-weight: 500; }
+    ul, ol { padding-left: 24px; max-width: 1120px; }
+    li { margin-bottom: 8px; }
+    footer { border-top: 1px solid var(--rule); padding-top: 20px; margin-top: 48px; font-size: 13px; color: var(--muted); }
+    @media (max-width: 700px) { main { padding: 24px 16px 40px; } h1 { font-size: 28px; } }
+    @media print {
+      main { padding: 0; max-width: none; }
+      nav { display: none; }
+      .diagram-container, .table-container { overflow-x: visible; }
+      svg { min-width: 0; }
+      table { min-width: 0; font-size: 11px; }
+      section { break-before: page; margin-top: 16px; }
+      .diagram-container { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">ARCHITECTURE REVIEW · 2026-11-05</p>
+    <h1>ADK Customer Service Agent<br>執行架構與建置相依性</h1>
+    <p>一週內完成可操作、可說明設計取捨的 LINE AI 客服展示。先在本機驗證客服核心，再接 LINE、持久化與 Cloud Run；你親手執行指令，每一步都對照實際結果。</p>
+    <div class="note"><p><strong>你現在的位置：</strong>本機 HTTP 與六項 LINE 驗簽測試已通過；客服狀態機程式與九項測試已寫入，尚待執行。LINE 帳號與 Webhook 串接延後。下方部署架構是目標設計，尚未部署。</p></div>
+  </header>
+  <nav aria-label="圖表導覽">
+    <a href="#choices">已確認與待確認選型</a>
+    <a href="#runtime">1. 部署架構</a>
+    <a href="#agent-flow">2. Agent 處理流程</a>
+    <a href="#state">3. 客服狀態機</a>
+    <a href="#dependencies">4. 實作相依圖</a>
+  </nav>
+
+  <section id="choices">
+    <h2>已確認的方向，與仍需完成的選型</h2>
+    <div class="table-container"><table>
+      <thead><tr><th>項目</th><th>目前方向</th><th>實作狀態／保留的決定</th></tr></thead>
+      <tbody>
+        <tr><td>開發與 HTTP 入口</td><td>Python 3.12、FastAPI、Uvicorn</td><td>本機 Python 3.12.14；已安裝 FastAPI 0.162.0、Uvicorn 0.54.0。<code>GET /healthz</code> 已回傳 HTTP 200。</td></tr>
+        <tr><td>Agent 與模型</td><td>Google ADK Python、Gemini</td><td>尚未安裝 ADK、設定模型或呼叫 API。安裝前確認 ADK 相依套件相容性；Gemini 型號與區域在接入時確認，不將未驗證的型號視為已設定。</td></tr>
+        <tr><td>雲端執行</td><td>Cloud Run：公開入口服務＋需驗證身分的 Worker 服務</td><td>兩個部署單位可共用 Python 套件；入口負責驗簽與客服網頁，Worker 負責 Agent 與工具工作。尚未建立雲端資源。</td></tr>
+        <tr><td>持久化與工作佇列</td><td>Firestore、Cloud Tasks</td><td>保存案件狀態、訊息與工作紀錄；以 Cloud Tasks 執行耗時工作。ADK SessionService 的持久化介接仍需驗證，不能將 Firestore 案件資料直接當成完整 ADK Session。</td></tr>
+        <tr><td>條款與商業規則</td><td>一般會員查 PDF 條款；VVIP 套用程式管理的免運策略</td><td>執行期間政策固定。PDF 解析、分段、檢索實作與索引儲存方式待選；未決定使用特定向量資料庫。</td></tr>
+        <tr><td>Tools 與外部協定</td><td>第一版使用 ADK 原生 Function Tools</td><td>業務函式與 ADK 包裝分離。MCP、排程掃描未取貨與主動提醒，保留擴充設計，這一版不實作。</td></tr>
+        <tr><td>真人客服</td><td>簡單客服網頁；客人沿用 LINE 聊天室</td><td>認領、回覆、交回 AI、結案。真人回覆先保存再送出；客服登入與案件權限的具體實作待選。</td></tr>
+        <tr><td>LINE 與測試身分</td><td>LINE Messaging API；只用合成會員與訂單</td><td>目前未有測試帳號，串接延後。用兩個帳號或單帳號切換合成身分尚未決定；訂單編號不能用來證明客人身分。</td></tr>
+      </tbody>
+    </table></div>
+    <p>未採用 Mem0 或 Redis；先以 Firestore 作為持久化方向。政策發布時間差、執行期間更新條款，以及 LINE Notify 不列入此版設計。</p>
+  </section>
+
+  <section id="runtime">
+    <h2>1. 部署架構：訊息如何抵達 Agent 與真人</h2>
+    <div class="diagram-container">
+    <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-runtime-title adk-customer-service-architecture-runtime-desc">
+      <title id="adk-customer-service-architecture-runtime-title">LINE 客服目標部署架構</title>
+      <desc id="adk-customer-service-architecture-runtime-desc">LINE 訊息經公開入口驗簽並保存，再由 Cloud Tasks 以受驗證的請求驅動 ADK Worker，Worker 讀寫 Firestore、呼叫 Gemini 並發送 LINE 訊息，真人透過受保護的客服網頁接手。</desc>
+      <defs>
+        <marker id="runtime-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="runtime-http" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+      </defs>
+      <rect x="0" y="0" width="1280" height="720" fill="#f5f5f5"/>
+      <text x="48" y="36" class="diagram-title">接收與推理分開，案件狀態集中保存</text>
+      <text x="48" y="60" class="muted">目標設計 · 所有雲端元件尚未部署</text>
+      <rect x="312" y="112" width="288" height="408" rx="8" class="zone"/>
+      <text x="328" y="132" class="muted">Cloud Run 公開入口服務</text>
+      <rect x="968" y="112" width="288" height="408" rx="8" class="zone"/>
+      <text x="984" y="132" class="muted">Cloud Run Worker · IAM 驗證</text>
+
+      <path d="M 1112 152 V 96 Q 1112 88 1104 88 H 152 Q 144 88 144 96 V 152" class="edge http" marker-end="url(#runtime-http)"/>
+      <rect x="576" y="64" width="192" height="16" class="label-mask"/><text x="672" y="76" text-anchor="middle">Messaging API 發送</text>
+      <line x1="240" y1="184" x2="336" y2="184" class="edge http" marker-end="url(#runtime-http)"/>
+      <rect x="248" y="156" width="80" height="20" class="label-mask"/><text x="288" y="172" text-anchor="middle">Webhook</text>
+      <line x1="576" y1="184" x2="688" y2="184" class="edge async" marker-end="url(#runtime-arrow)"/>
+      <rect x="596" y="156" width="72" height="20" class="label-mask"/><text x="632" y="172" text-anchor="middle">建立工作</text>
+      <line x1="880" y1="184" x2="992" y2="184" class="edge async" marker-end="url(#runtime-arrow)"/>
+      <rect x="900" y="156" width="72" height="20" class="label-mask"/><text x="936" y="172" text-anchor="middle">OIDC</text>
+      <path d="M 536 240 V 312 Q 536 320 544 320 H 744 Q 752 320 752 328 V 384" class="edge" marker-end="url(#runtime-arrow)"/>
+      <rect x="568" y="292" width="136" height="20" class="label-mask"/><text x="636" y="308" text-anchor="middle">保存事件、去重</text>
+      <path d="M 992 216 H 952 Q 944 216 944 224 V 440 Q 944 448 936 448 H 928" class="edge" marker-end="url(#runtime-arrow)"/>
+      <line x1="576" y1="432" x2="688" y2="432" class="edge" marker-end="url(#runtime-arrow)"/>
+      <rect x="592" y="404" width="80" height="20" class="label-mask"/><text x="632" y="420" text-anchor="middle">讀寫案件</text>
+      <line x1="1112" y1="240" x2="1112" y2="384" class="edge http" marker-end="url(#runtime-http)"/>
+      <rect x="1128" y="300" width="72" height="20" class="label-mask"/><text x="1164" y="316" text-anchor="middle">模型請求</text>
+      <line x1="240" y1="432" x2="336" y2="432" class="edge http" marker-end="url(#runtime-http)"/>
+      <rect x="248" y="444" width="80" height="20" class="label-mask"/><text x="288" y="460" text-anchor="middle">登入操作</text>
+      <path d="M 336 408 H 288 Q 280 408 280 400 V 216 Q 280 208 272 208 H 240" class="edge http" marker-end="url(#runtime-http)"/>
+
+      <rect x="48" y="152" width="192" height="88" rx="6" class="external"/>
+      <text x="64" y="180" class="name">LINE 官方帳號</text><text x="64" y="204" class="muted">客人訊息／Messaging API</text><text x="64" y="224" class="muted">帳號串接延後</text>
+      <rect x="336" y="152" width="240" height="88" rx="6" class="box"/>
+      <text x="352" y="180" class="name">FastAPI 訊息入口</text><text x="352" y="204" class="muted">原始內容驗簽 → 保存 → 排入工作</text><text x="352" y="224" class="muted">完成可靠接收後才回應 LINE</text>
+      <rect x="688" y="152" width="192" height="88" rx="6" class="external"/>
+      <text x="704" y="180" class="name">Cloud Tasks</text><text x="704" y="204" class="muted">非同步執行、重試與限流</text><text x="704" y="224" class="muted">不假設只投遞一次</text>
+      <rect x="992" y="152" width="240" height="88" rx="6" class="focal"/>
+      <text x="1008" y="180" class="name">ADK 客服 Worker</text><text x="1008" y="204" class="muted">狀態檢查、Tools、RAG、回覆</text><text x="1008" y="224" class="muted">讀寫 Firestore／發送前再檢查</text>
+      <rect x="48" y="384" width="192" height="88" rx="6" class="external"/>
+      <text x="64" y="412" class="name">真人客服</text><text x="64" y="436" class="muted">讀取、認領、回覆、結案</text><text x="64" y="456" class="muted">客人繼續使用 LINE 聊天室</text>
+      <rect x="336" y="384" width="240" height="88" rx="6" class="box"/>
+      <text x="352" y="412" class="name">客服網頁與操作 API</text><text x="352" y="436" class="muted">登入與案件權限檢查</text><text x="352" y="456" class="muted">真人回覆也先保存再發送</text>
+      <rect x="688" y="384" width="240" height="128" rx="6" class="store"/>
+      <text x="704" y="412" class="name">Firestore</text><text x="704" y="436" class="muted">案件模式／revision／客服認領</text><text x="704" y="460" class="muted">客人、AI、真人的完整訊息紀錄</text><text x="704" y="484" class="muted">工作狀態、待發送紀錄、去重資料</text><text x="704" y="504" class="muted">ADK Session 介接仍待驗證</text>
+      <rect x="992" y="384" width="240" height="88" rx="6" class="external"/>
+      <text x="1008" y="412" class="name">Gemini</text><text x="1008" y="436" class="muted">由 ADK 呼叫模型</text><text x="1008" y="456" class="muted">限定本輪 Context 與可用工具</text>
+      <text x="48" y="568">圖中各箭頭表示主要請求或資料操作；一般 API 回應省略。Firestore 是共用服務，並非位於 Cloud Run 容器內。</text>
+      <text x="48" y="596" class="muted">部署前補齊：入口與 Worker 的服務帳號權限、憑證注入、客服登入、請求識別碼、錯誤與成本監控。</text>
+      <text x="48" y="624" class="muted">待發送紀錄保存要送的內容與處理狀態；實際發送、重試和去重都由後端控制。</text>
+      <line x1="48" y1="660" x2="1232" y2="660" class="rule"/>
+      <line x1="48" y1="692" x2="88" y2="692" class="edge http" marker-end="url(#runtime-http)"/><text x="100" y="696" class="muted">HTTP／外部 API</text>
+      <line x1="328" y1="692" x2="368" y2="692" class="edge" marker-end="url(#runtime-arrow)"/><text x="380" y="696" class="muted">資料操作</text>
+      <line x1="560" y1="692" x2="600" y2="692" class="edge async" marker-end="url(#runtime-arrow)"/><text x="612" y="696" class="muted">工作佇列</text>
+      <rect x="800" y="680" width="32" height="24" rx="4" class="zone"/><text x="844" y="696" class="muted">服務部署邊界</text>
+    </svg></div>
+    <h3>記憶與 Context 分開設計</h3>
+    <div class="table-container"><table>
+      <thead><tr><th>保存的內容</th><th>負責什麼</th><th>不能拿來代替什麼</th></tr></thead>
+      <tbody>
+        <tr><td>案件狀態</td><td>誰可以處理、模式、revision、真人認領。狀態切換必須由後端與資料庫交易控制。</td><td>模型 Prompt 與特殊文字 Tag 無法提供跨執行個體的互斥控制。</td></tr>
+        <tr><td>完整訊息紀錄</td><td>客人、AI、真人原文，作為客服畫面、稽核與重新整理 Context 的來源。</td><td>保存全部原文，不代表每輪都要送全部原文給模型。</td></tr>
+        <tr><td>ADK Session 與 State</td><td>同一案件中的模型互動、工具事件與對話工作資料。先讓持久化介接通過重啟與還原測試。</td><td>案件資料表不會自動成為 ADK 可正確還原的 Session；需實作或選用相容的 SessionService。</td></tr>
+        <tr><td>跨 Session 記憶</td><td>新案件可取得必要的客戶事實與已結案摘要，按客戶身分隔離；訂單與權益仍重新查詢。</td><td>不能把上一個案件的未驗證推測、舊政策或舊權益當成目前事實。</td></tr>
+        <tr><td>模型 Context</td><td>本輪問題＋最近對話＋案件摘要＋經授權的訂單與政策片段，限制 token 預算。</td><td>大型 Context Window 不能代替摘要策略、事實保存與長對話評估。</td></tr>
+      </tbody>
+    </table></div>
+    <p>同一案件跨服務重啟仍延續；明確結案後的新聯絡建立新案件與 Session，再按權限讀取必要的跨案件記憶。ADK 的壓縮設定與摘要策略，在確定 SDK 版本後實作。</p>
+  </section>
+
+  <section id="agent-flow">
+    <h2>2. Agent 處理流程：會員分流由後端約束</h2>
+    <div class="diagram-container">
+    <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-agent-title adk-customer-service-architecture-agent-desc">
+      <title id="adk-customer-service-architecture-agent-title">一般會員與 VVIP 的客服分流</title>
+      <desc id="adk-customer-service-architecture-agent-desc">後端先檢查案件是否允許 AI 處理，再以可信身分查詢訂單並驗證所有權，一般會員檢索一般條款，VVIP 使用免運策略，所有回覆在發送前重新檢查狀態，VVIP 政策回覆後交由真人接手。</desc>
+      <defs><marker id="agent-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs>
+      <rect x="0" y="0" width="1280" height="720" fill="#f5f5f5"/>
+      <text x="48" y="40" class="diagram-title">同一個問題，依已驗證的身分決定可用政策</text>
+      <text x="48" y="72" class="muted">目標流程 · 本圖聚焦訂單退貨運費；所有節點均由後端協調</text>
+      <line x1="240" y1="304" x2="336" y2="304" class="edge" marker-end="url(#agent-arrow)"/>
+      <rect x="252" y="276" width="72" height="20" class="label-mask"/><text x="288" y="292" text-anchor="middle">允許</text>
+      <line x1="144" y1="352" x2="144" y2="472" class="edge" marker-end="url(#agent-arrow)"/>
+      <rect x="160" y="396" width="128" height="20" class="label-mask"/><text x="224" y="412" text-anchor="middle">真人模式／需轉接</text>
+      <line x1="528" y1="304" x2="624" y2="304" class="edge" marker-end="url(#agent-arrow)"/>
+      <line x1="816" y1="304" x2="944" y2="304" class="edge" marker-end="url(#agent-arrow)"/>
+      <rect x="840" y="276" width="80" height="20" class="label-mask"/><text x="880" y="292" text-anchor="middle">本人訂單</text>
+      <line x1="720" y1="352" x2="720" y2="448" class="edge" marker-end="url(#agent-arrow)"/>
+      <rect x="736" y="392" width="96" height="20" class="label-mask"/><text x="784" y="408" text-anchor="middle">未通過</text>
+      <line x1="1040" y1="256" x2="1040" y2="176" class="edge" marker-end="url(#agent-arrow)"/>
+      <rect x="1056" y="208" width="80" height="20" class="label-mask"/><text x="1096" y="224" text-anchor="middle">一般會員</text>
+      <line x1="1040" y1="352" x2="1040" y2="472" class="edge" marker-end="url(#agent-arrow)"/>
+      <rect x="1056" y="396" width="80" height="20" class="label-mask"/><text x="1096" y="412" text-anchor="middle">VVIP</text>
+      <path d="M 944 144 H 872 Q 864 144 864 152 V 296 a 8 8 0 0 0 0 16 V 600 Q 864 608 856 608 H 816" class="edge" marker-end="url(#agent-arrow)"/>
+      <path d="M 944 512 H 904 Q 896 512 896 520 V 624 Q 896 632 888 632 H 816" class="edge" marker-end="url(#agent-arrow)"/>
+
+      <polygon points="144,256 240,304 144,352 48,304" class="focal"/>
+      <text x="144" y="300" text-anchor="middle" class="name">允許 AI</text><text x="144" y="320" text-anchor="middle" class="name">處理本輪？</text>
+      <rect x="336" y="272" width="192" height="64" rx="6" class="box"/>
+      <text x="352" y="296" class="name">訂單查詢 Tool</text><text x="352" y="320" class="muted">可信客戶身分＋訂單編號</text>
+      <polygon points="720,256 816,304 720,352 624,304" class="box"/>
+      <text x="720" y="300" text-anchor="middle" class="name">訂單權限</text><text x="720" y="320" text-anchor="middle" class="name">通過？</text>
+      <polygon points="1040,256 1136,304 1040,352 944,304" class="box"/>
+      <text x="1040" y="300" text-anchor="middle" class="name">已驗證的</text><text x="1040" y="320" text-anchor="middle" class="name">會員等級？</text>
+      <rect x="944" y="112" width="240" height="64" rx="6" class="box"/>
+      <text x="960" y="136" class="name">一般條款 RAG</text><text x="960" y="160" class="muted">ORD-123：依條款自付 60 元</text>
+      <rect x="944" y="472" width="240" height="80" rx="6" class="box"/>
+      <text x="960" y="496" class="name">VVIP 策略＋轉接準備</text><text x="960" y="520" class="muted">ORD-999：免運政策</text><text x="960" y="540" class="muted">只保留這次指定政策回覆</text>
+      <rect x="624" y="448" width="192" height="64" rx="6" class="external"/>
+      <text x="640" y="472" class="name">拒絕揭露訂單資料</text><text x="640" y="496" class="muted">不進入會員政策檢索</text>
+      <rect x="48" y="472" width="240" height="80" rx="6" class="external"/>
+      <text x="64" y="496" class="name">保存訊息／交真人處理</text><text x="64" y="520" class="muted">禁止一般 AI 回覆</text><text x="64" y="540" class="muted">觸發原因與案件狀態留存</text>
+      <rect x="624" y="568" width="192" height="80" rx="6" class="focal"/>
+      <text x="640" y="592" class="name">發送前再檢查</text><text x="640" y="616" class="muted">模式＋revision＋回覆種類</text><text x="640" y="636" class="muted">保存待發送紀錄</text>
+      <line x1="48" y1="668" x2="1232" y2="668" class="rule"/>
+      <polygon points="64,684 80,692 64,700 48,692" class="box"/><text x="92" y="696" class="muted">後端判斷</text>
+      <rect x="280" y="680" width="32" height="24" rx="6" class="box"/><text x="324" y="696" class="muted">業務處理</text>
+      <line x1="520" y1="692" x2="560" y2="692" class="edge" marker-end="url(#agent-arrow)"/><text x="572" y="696" class="muted">處理順序／條件分支</text>
+    </svg></div>
+    <ol>
+      <li><strong>模型不能自行提升權益。</strong>Tool 由後端綁定可信客戶身分；使用者說「我是 VVIP」或輸入別人的訂單編號，都不能改變查詢權限。Tool 回傳結構化結果，後端選擇可用的政策範圍。</li>
+      <li><strong>檢索邊界由程式限制。</strong>一般會員只能取得適用的一般條款；VVIP 的免運策略由後端提供。模型負責組織文字，工具與檢索函式再次檢查權限。具體 ADK callback 與工具包裝在 SDK 版本確認後實作。</li>
+      <li><strong>VVIP 的順序：</strong>先切換轉接準備狀態，封鎖一般 AI 回覆；授權指定政策回覆；該階段結束後進入等待真人，非同步通知客服。發送失敗也不能自動回到 AI 模式。</li>
+      <li><strong>情緒與能力判斷仍需評估。</strong>明確要求真人可用確定規則；嚴重情緒與能力不足可結合分類與工具結果，需用案例測試誤判率。模型不得只靠輸出特殊 Tag 改變案件狀態。</li>
+    </ol>
+    <p>「發送前再檢查」尚未實作；狀態機的布林判斷本身不構成併發鎖。後續必須以交易式發送授權與待發送紀錄控制重試；已交給外部 API 的訊息無法靠狀態切換撤回。</p>
+  </section>
+
+  <section id="state">
+    <h2>3. 客服狀態機：眼前這一步在做什麼</h2>
+    <p>把「AI 能不能處理與回覆」寫成可測試的規則。相同規則之後供本機模擬、LINE 入口、ADK Worker 與客服網頁共用。</p>
+    <div class="diagram-container">
+    <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-state-title adk-customer-service-architecture-state-desc">
+      <title id="adk-customer-service-architecture-state-title">客服案件的 AI 與真人模式切換</title>
+      <desc id="adk-customer-service-architecture-state-desc">案件從 AI 模式開始，VVIP 先進入轉接準備再等待真人，其他轉接原因直接等待真人，認領後由真人處理，真人可交回 AI 或結案，已結案案件不可重新啟用。</desc>
+      <defs><marker id="state-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs>
+      <rect x="0" y="0" width="1280" height="720" fill="#f5f5f5"/>
+      <text x="48" y="40" class="diagram-title">轉接先封鎖一般 AI 回覆，再處理真人進駐</text>
+      <text x="48" y="72" class="muted">對照目前 conversation.py · 規則與九項測試已寫入，測試結果待回報</text>
+      <path d="M 304 336 H 336 Q 344 336 344 328 V 176 Q 344 168 352 168 H 432" class="edge" marker-end="url(#state-arrow)"/>
+      <rect x="360" y="236" width="56" height="20" class="label-mask"/><text x="388" y="252" text-anchor="middle">VVIP</text>
+      <line x1="304" y1="368" x2="784" y2="368" class="edge" marker-end="url(#state-arrow)"/>
+      <rect x="400" y="340" width="288" height="20" class="label-mask"/><text x="544" y="356" text-anchor="middle">要求真人／嚴重情緒／能力不足</text>
+      <path d="M 688 168 H 888 Q 896 168 896 176 V 312" class="edge" marker-end="url(#state-arrow)"/>
+      <rect x="912" y="232" width="184" height="20" class="label-mask"/><text x="1004" y="248" text-anchor="middle">指定政策回覆階段結束</text>
+      <line x1="896" y1="392" x2="896" y2="496" class="edge" marker-end="url(#state-arrow)"/>
+      <rect x="912" y="432" width="112" height="20" class="label-mask"/><text x="968" y="448" text-anchor="middle">真人認領</text>
+      <path d="M 784 520 H 744 Q 736 520 736 512 V 424 Q 736 416 728 416 H 248 Q 240 416 240 408 V 392" class="edge" marker-end="url(#state-arrow)"/>
+      <rect x="416" y="388" width="208" height="20" class="label-mask"/><text x="520" y="404" text-anchor="middle">真人明確交回 AI</text>
+      <path d="M 128 392 V 608 Q 128 616 136 616 H 456 Q 464 616 464 608 V 576" class="edge" marker-end="url(#state-arrow)"/>
+      <rect x="232" y="588" width="120" height="20" class="label-mask"/><text x="292" y="604" text-anchor="middle">AI 模式結案</text>
+      <line x1="784" y1="560" x2="688" y2="560" class="edge" marker-end="url(#state-arrow)"/>
+      <rect x="704" y="572" width="64" height="20" class="label-mask"/><text x="736" y="588" text-anchor="middle">結案</text>
+
+      <rect x="80" y="312" width="224" height="80" rx="8" class="box"/>
+      <text x="96" y="340" class="name technical">AI_MODE</text><text x="96" y="364" class="muted">允許當前 revision 的 AI 回覆</text><text x="96" y="384" class="muted">新案件從這裡開始</text>
+      <rect x="432" y="128" width="256" height="80" rx="8" class="box"/>
+      <text x="448" y="156" class="name technical">HANDOFF_PREPARING</text><text x="448" y="180" class="muted">VVIP：只允許指定政策回覆</text><text x="448" y="200" class="muted">一般 AI 回覆已停用</text>
+      <rect x="784" y="312" width="224" height="80" rx="8" class="focal"/>
+      <text x="800" y="340" class="name technical">HUMAN_WAITING</text><text x="800" y="364" class="muted">等待真人，禁止 AI 回覆</text><text x="800" y="384" class="muted">通知延遲不影響封鎖</text>
+      <rect x="784" y="496" width="224" height="80" rx="8" class="box"/>
+      <text x="800" y="524" class="name technical">HUMAN_ACTIVE</text><text x="800" y="548" class="muted">真人服務，禁止 AI 回覆</text><text x="800" y="568" class="muted">可交回 AI 或結案</text>
+      <rect x="432" y="496" width="256" height="80" rx="8" class="external"/>
+      <text x="448" y="524" class="name technical">CLOSED</text><text x="448" y="548" class="muted">案件結束，不再啟用這個案件</text><text x="448" y="568" class="muted">新聯絡另建案件與 Session</text>
+      <line x1="48" y1="660" x2="1232" y2="660" class="rule"/>
+      <rect x="48" y="680" width="32" height="24" rx="8" class="box"/><text x="92" y="696" class="muted">案件狀態</text>
+      <line x1="288" y1="692" x2="328" y2="692" class="edge" marker-end="url(#state-arrow)"/><text x="340" y="696" class="muted">合法狀態切換</text>
+      <text x="640" y="696" class="muted">每次切換 revision + 1；舊 AI 工作不得沿用舊版本送出。</text>
+    </svg></div>
+    <p><strong>revision 的例子：</strong>AI 在版本 0 開始生成，客人要求真人後變成版本 1。舊工作完成時拿版本 0 比對最新狀態，就應放棄回覆；之後真人交回 AI，版本繼續增加，舊回覆也不會重新有效。</p>
+    <p>目前程式只定義合法切換與回覆判斷。客服身分驗證、認領者權限、資料庫交易、訊息排序與發送去重，仍要在應用服務與持久化層完成；不能只憑這九項單元測試宣告生產環境已安全。</p>
+  </section>
+
+  <section id="dependencies">
+    <h2>4. 實作相依圖：先完成什麼，才能接什麼</h2>
+    <div class="diagram-container">
+    <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-dependencies-title adk-customer-service-architecture-dependencies-desc">
+      <title id="adk-customer-service-architecture-dependencies-title">從本機核心到雲端展示的任務相依性</title>
+      <desc id="adk-customer-service-architecture-dependencies-desc">本機基礎支援狀態規則與持久化資料，這兩項共同支援 ADK 客服核心與真人網頁，LINE 帳號另支援 Webhook 串接，三條工作線最後匯合為 Cloud Run 部署與端到端驗收。</desc>
+      <defs><marker id="dependency-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs>
+      <rect x="0" y="0" width="1280" height="720" fill="#f5f5f5"/>
+      <text x="48" y="40" class="diagram-title">LINE 帳號可以晚接，客服核心先在本機驗證</text>
+      <text x="48" y="72" class="muted">箭頭＝前項是後項的先決條件；方框狀態以本次檔案與你貼回的結果為準</text>
+      <path d="M 384 140 H 280 Q 272 140 272 148 V 264" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 544 152 H 584 Q 592 152 592 160 V 264" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 544 128 H 920 Q 928 128 928 136 V 436 Q 928 444 936 444 H 1008" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="1088" y1="168" x2="1088" y2="416" class="edge async" marker-end="url(#dependency-arrow)"/>
+      <line x1="248" y1="320" x2="248" y2="416" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="632" y1="320" x2="632" y2="416" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 352 280 H 440 Q 448 280 448 288 V 376 Q 448 384 456 384 H 544 Q 552 384 552 392 V 416" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 512 308 H 456 a 8 8 0 0 0 -16 0 H 424 Q 416 308 416 316 V 352 Q 416 360 408 360 H 312 Q 304 360 304 368 V 416" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 272 472 V 588 Q 272 596 280 596 H 512" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="592" y1="472" x2="592" y2="568" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 1088 472 V 588 Q 1088 596 1080 596 H 672" class="edge" marker-end="url(#dependency-arrow)"/>
+
+      <rect x="384" y="112" width="160" height="56" rx="6" class="box"/>
+      <rect x="500" y="116" width="40" height="12" rx="2" class="badge"/><text x="520" y="125" text-anchor="middle" class="badge-text">3 in</text>
+      <text x="396" y="140" class="name">本機 HTTP／驗簽</text><text x="396" y="160" class="muted">已驗證</text>
+      <rect x="1008" y="112" width="160" height="56" rx="6" class="external"/>
+      <rect x="1124" y="116" width="40" height="12" rx="2" class="badge"/><text x="1144" y="125" text-anchor="middle" class="badge-text">1 in</text>
+      <text x="1020" y="140" class="name">LINE 帳號與憑證</text><text x="1020" y="160" class="muted">延後，不擋本機核心</text>
+      <rect x="192" y="264" width="160" height="56" rx="6" class="box"/>
+      <rect x="308" y="268" width="40" height="12" rx="2" class="badge"/><text x="328" y="277" text-anchor="middle" class="badge-text">2 in</text>
+      <text x="204" y="292" class="name">客服狀態規則</text><text x="204" y="312" class="muted">已寫，九項測試待執行</text>
+      <rect x="512" y="264" width="160" height="56" rx="6" class="box"/>
+      <rect x="628" y="268" width="40" height="12" rx="2" class="badge"/><text x="648" y="277" text-anchor="middle" class="badge-text">2 in</text>
+      <text x="524" y="292" class="name">持久化與測試資料</text><text x="524" y="312" class="muted">待做：Firestore／權限</text>
+      <rect x="192" y="416" width="160" height="56" rx="6" class="box"/>
+      <rect x="308" y="420" width="40" height="12" rx="2" class="badge"/><text x="328" y="429" text-anchor="middle" class="badge-text">1 in</text>
+      <text x="204" y="444" class="name">ADK／Tools／RAG</text><text x="204" y="464" class="muted">待做：本機客服流程</text>
+      <rect x="512" y="416" width="160" height="56" rx="6" class="box"/>
+      <rect x="628" y="420" width="40" height="12" rx="2" class="badge"/><text x="648" y="429" text-anchor="middle" class="badge-text">1 in</text>
+      <text x="524" y="444" class="name">真人客服網頁</text><text x="524" y="464" class="muted">待做：登入／認領／回覆</text>
+      <rect x="1008" y="416" width="160" height="56" rx="6" class="box"/>
+      <rect x="1124" y="420" width="40" height="12" rx="2" class="badge"/><text x="1144" y="429" text-anchor="middle" class="badge-text">1 in</text>
+      <text x="1020" y="444" class="name">LINE Webhook</text><text x="1020" y="464" class="muted">延後：事件與回覆串接</text>
+      <rect x="512" y="568" width="160" height="56" rx="6" class="external"/>
+      <rect x="628" y="572" width="40" height="12" rx="2" class="badge"/><text x="648" y="581" text-anchor="middle" class="badge-text">0 in</text>
+      <text x="524" y="596" class="name">Cloud Run 完整驗收</text><text x="524" y="616" class="muted">Tasks／IAM／重試／展示</text>
+      <text x="48" y="648" class="muted">持久化與測試資料合併呈現：含客戶綁定、訂單所有權、訊息紀錄、Session 介接與案件交易。</text>
+      <line x1="48" y1="668" x2="1232" y2="668" class="rule"/>
+      <line x1="48" y1="692" x2="88" y2="692" class="edge" marker-end="url(#dependency-arrow)"/><text x="100" y="696" class="muted">先決條件 → 後續工作</text>
+      <line x1="384" y1="692" x2="424" y2="692" class="edge async" marker-end="url(#dependency-arrow)"/><text x="436" y="696" class="muted">延後的外部前提</text>
+      <text x="736" y="696" class="muted">in 數字＝有幾項直接後續工作依賴此項</text>
+    </svg></div>
+    <h3>建置順序與每一步的驗收</h3>
+    <div class="table-container"><table>
+      <thead><tr><th>工作</th><th>前提與產出</th><th>通過標準</th></tr></thead>
+      <tbody>
+        <tr><td>本機基礎與驗簽</td><td>現有 Python 虛擬環境、HTTP 入口與原始內容簽章驗證。</td><td>已取得 <code>/healthz</code> HTTP 200，以及使用者回報的六項測試 <code>OK</code>。</td></tr>
+        <tr><td>客服狀態規則</td><td>現有狀態機；先驗證合法切換與舊 AI 回覆失效。</td><td>九項新增測試待執行；加上驗簽應共十五項通過。這只驗證純規則，不證明分散式競爭已解決。</td></tr>
+        <tr><td>本機流程與持久化</td><td>狀態規則通過後，先用合成事件、明確標為測試用的儲存介面走流程，再接 Firestore；定義資料模型、交易與 Session 介接。</td><td>同案件訊息能保存、重啟能還原、不同客人無法互查訂單；相同事件重送不造成重複處理。測試替身不能作為雲端完成證據。</td></tr>
+        <tr><td>ADK、Tools 與條款檢索</td><td>合成會員與訂單、固定 PDF、Gemini 憑證與模型設定；工具使用可信身分，不接受模型自行指定客戶。</td><td>一般會員與 VVIP 回答符合各自政策；查別人訂單被拒；多輪追問、代名詞與跨案件必要記憶可驗證；長對話受 Context 預算限制。</td></tr>
+        <tr><td>真人客服網頁</td><td>共用案件與訊息服務，加入登入、認領者驗證與發送介面。</td><td>真人完整看到客人與 AI 訊息；真人回覆保存；兩位客服不能同時認領；只有授權客服能釋放案件或結案。</td></tr>
+        <tr><td>LINE 串接</td><td>測試帳號準備好後再做。既有驗簽接上 Webhook，加入事件去重與身分綁定。</td><td>原始內容先驗簽再解析；未可靠保存與安排工作前不確認接收；測試事件可處理，真實客戶事件可回覆。</td></tr>
+        <tr><td>佇列與雲端部署</td><td>本機流程通過後，接 Cloud Tasks、Worker IAM、可靠發送與監控，再整合兩個 Cloud Run 服務。</td><td>重試不重複副作用、異常可追蹤、同案件工作有排序與互斥；真人切換後禁止新 AI 發送授權，並量測在途訊息的邊界。</td></tr>
+        <tr><td>Showcase 與評估</td><td>真實 LINE、一般／VVIP 合成身分與客服網頁；準備固定問題集與操作劇本。</td><td>展示四個目標，記錄正確率、越權阻擋、轉接後誤回覆、回覆時間、模型 token 與費用；報告實測結果，不預填達標數字。</td></tr>
+      </tbody>
+    </table></div>
+    <h3>維護與擴充如何分工</h3>
+    <p><code>domain/</code> 放案件與權限規則；後續的應用服務串接儲存、Agent 與發送介面；<code>api/</code> 處理 HTTP；<code>integrations/</code> 包裝 LINE、Firestore 與模型等外部服務。只有前述既有目錄與狀態機已存在，其餘仍待建置。</p>
+    <p>未來 MCP 只包裝相同業務服務；主動式客服可由 Scheduler 觸發另一個工作入口，共用工具、訂單權限、發送限流與紀錄。另行檢查主動訊息的使用者同意、可推播資格與去重，不直接重播被動客服 Prompt。</p>
+    <div class="note"><p><strong>圖表看完後的下一步：</strong>先核對狀態機的十五項整體測試；通過後開始本機合成事件流程。LINE 帳號尚未備妥，不阻擋這條工作線。</p></div>
+  </section>
+
+  <footer>
+    <p>依據：本次對話的決策、目前專案原始碼與使用者貼回的驗證結果。此文件是 2026-11-05 的設計快照，不是自動更新的部署清單。</p>
+    <p>官方機制查核：ADK Session／State／Memory 分別管理單次互動與跨 Session 資訊；ADK Context compression 提供 Context 壓縮配置；Cloud Tasks 與 Cloud Run 支援以受驗證請求執行非同步工作。以上機制可用，不代表本專案已接入或部署。</p>
+    <p>官方來源：<code>https://adk.dev/sessions/</code>、<code>https://adk.dev/context/compaction/</code>、<code>https://docs.cloud.google.com/run/docs/triggering/using-tasks</code>。</p>
+    <p>圖表格式：四張靜態 1280×720 SVG，內嵌於此 HTML；無 JavaScript。字型使用 Google Fonts，無網路時使用系統備援字型。</p>
+  </footer>
+</main>
+</body>
+</html>

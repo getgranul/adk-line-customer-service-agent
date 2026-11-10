@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>本機 HTTP 服務如何回應請求</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #f5f5f5; color: #2d3142; font-family: 'Geist', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; }
+    main { max-width: 1440px; min-width: 0; margin: 0 auto; }
+    .diagram-container { width: 100%; max-width: 100%; overflow-x: auto; }
+    svg { display: block; width: 100%; min-width: 1280px; height: auto; }
+    svg text { font-family: 'Geist', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; fill: #2d3142; font-size: 12px; }
+    .heading { font-family: 'Instrument Serif', 'Noto Serif TC', serif; font-size: 28px; font-weight: 400; fill: #111111; }
+    .muted { fill: #4f5d75; }
+    .actor { font-weight: 600; }
+    .mono { font-family: 'Geist Mono', monospace; }
+    .lifeline { stroke: #bfc0c0; stroke-width: 1; stroke-dasharray: 4 4; }
+    .activation { fill: #ececec; stroke: #4f5d75; stroke-width: 0.8; }
+    .call { stroke: #4f5d75; stroke-width: 1.5; marker-end: url(#local-http-service-arrow); }
+    .return { stroke: #4f5d75; stroke-width: 1.5; stroke-dasharray: 6 4; marker-end: url(#local-http-service-arrow); }
+    .success { stroke: #bf4520; stroke-width: 1.5; marker-end: url(#local-http-service-success); }
+    .label-bg { fill: #f5f5f5; }
+    .explanation { margin: 16px 32px 0; max-width: 1000px; font-size: 15px; line-height: 1.8; }
+    code { font-family: 'Geist Mono', monospace; font-size: 0.9em; }
+    @media print {
+      body { padding: 0; }
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="local-http-service-title local-http-service-desc">
+        <title id="local-http-service-title">本機 HTTP 服務如何回應請求</title>
+        <desc id="local-http-service-desc">時間由上往下。瀏覽器向本機 127.0.0.1 的 8081 埠請求 GET /healthz，Uvicorn 接收 HTTP 請求並透過 ASGI 呼叫 FastAPI，FastAPI 執行 health_check，將回傳的 Python 字典轉為 JSON，最後由 Uvicorn 傳回 HTTP 200。所有服務端元件都在本機 Python 程序中，尚未連接 LINE、資料庫或模型。</desc>
+        <defs>
+          <marker id="local-http-service-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="local-http-service-success" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+        </defs>
+        <rect x="0" y="0" width="1280" height="720" fill="#f5f5f5"/>
+        <text x="48" y="56" class="heading">本機 HTTP 服務：把請求交給程式，再把結果送回去</text>
+        <text x="48" y="88" class="muted">目前已驗證的流程 · http://127.0.0.1:8081/healthz · 時間由上往下</text>
+
+        <!-- The server components share one Python server process; these are roles, not separate hosts. -->
+        <rect x="352" y="112" width="880" height="464" rx="8" fill="none" stroke="#bfc0c0" stroke-width="1"/>
+        <text x="1208" y="136" text-anchor="end" class="muted">同一個 Python 服務程序</text>
+        <line x1="176" y1="208" x2="176" y2="568" class="lifeline"/>
+        <line x1="480" y1="208" x2="480" y2="568" class="lifeline"/>
+        <line x1="784" y1="208" x2="784" y2="568" class="lifeline"/>
+        <line x1="1088" y1="208" x2="1088" y2="568" class="lifeline"/>
+        <rect x="476" y="240" width="8" height="300" class="activation"/>
+        <rect x="780" y="300" width="8" height="180" class="activation"/>
+        <rect x="1084" y="360" width="8" height="60" class="activation"/>
+
+        <line x1="176" y1="240" x2="476" y2="240" class="call"/>
+        <rect x="244" y="212" width="168" height="20" class="label-bg"/>
+        <text x="328" y="228" text-anchor="middle">1. GET /healthz</text>
+        <line x1="484" y1="300" x2="780" y2="300" class="call"/>
+        <rect x="540" y="272" width="184" height="20" class="label-bg"/>
+        <text x="632" y="288" text-anchor="middle">2. 透過 ASGI 呼叫應用</text>
+        <line x1="788" y1="360" x2="1084" y2="360" class="call"/>
+        <rect x="848" y="332" width="176" height="20" class="label-bg"/>
+        <text x="936" y="348" text-anchor="middle">3. 匹配路由，執行函式</text>
+        <line x1="1084" y1="420" x2="788" y2="420" class="return"/>
+        <rect x="840" y="392" width="192" height="20" class="label-bg"/>
+        <text x="936" y="408" text-anchor="middle">4. 回傳 Python 字典</text>
+        <line x1="780" y1="480" x2="484" y2="480" class="return"/>
+        <rect x="544" y="452" width="176" height="20" class="label-bg"/>
+        <text x="632" y="468" text-anchor="middle">5. 產生 JSON 回應</text>
+        <line x1="476" y1="540" x2="176" y2="540" class="success"/>
+        <rect x="236" y="512" width="184" height="20" class="label-bg"/>
+        <text x="328" y="528" text-anchor="middle">6. HTTP 200 + JSON</text>
+
+        <rect x="64" y="152" width="224" height="56" rx="8" fill="#ececec" stroke="#bfc0c0"/>
+        <text x="176" y="176" text-anchor="middle" class="actor">瀏覽器／PowerShell</text>
+        <text x="176" y="196" text-anchor="middle" class="muted">發出請求，顯示結果</text>
+        <rect x="368" y="152" width="224" height="56" rx="8" fill="#ececec" stroke="#bfc0c0"/>
+        <text x="480" y="176" text-anchor="middle" class="actor">Uvicorn</text>
+        <text x="480" y="196" text-anchor="middle" class="muted">監聽本機 8081 埠</text>
+        <rect x="672" y="152" width="224" height="56" rx="8" fill="#ececec" stroke="#bfc0c0"/>
+        <text x="784" y="176" text-anchor="middle" class="actor">FastAPI</text>
+        <text x="784" y="196" text-anchor="middle" class="muted">依網址與方法分派請求</text>
+        <rect x="976" y="152" width="224" height="56" rx="8" fill="#ececec" stroke="#bfc0c0"/>
+        <text x="1088" y="176" text-anchor="middle" class="actor">health_check()</text>
+        <text x="1088" y="196" text-anchor="middle" class="muted">回傳 {"status": "ok"}</text>
+
+        <text x="48" y="616">目前用途：驗證 HTTP 入口能正常回應；LINE Webhook、資料庫與 Gemini 尚未接入。</text>
+        <text x="48" y="644" class="muted">連線範圍：127.0.0.1 僅供本機直接存取；若另設代理或隧道，需重新檢視公開範圍。</text>
+        <line x1="48" y1="668" x2="1232" y2="668" stroke="#bfc0c0"/>
+        <line x1="48" y1="696" x2="88" y2="696" class="call"/>
+        <text x="100" y="700" class="muted">呼叫</text>
+        <line x1="192" y1="696" x2="232" y2="696" class="return"/>
+        <text x="244" y="700" class="muted">回傳</text>
+        <line x1="336" y1="696" x2="376" y2="696" class="success"/>
+        <text x="388" y="700" class="muted">最終成功回應</text>
+      </svg>
+    </div>
+    <p class="explanation">這個服務讓其他程式透過 HTTP 呼叫你的 Python 功能。目前只有 <code>GET /healthz</code> 會回傳健康狀態；後續加入 LINE Webhook 時，同一種接收與回應機制會用來處理 LINE 傳來的訊息事件。ASGI 是 Uvicorn 與 FastAPI 之間傳遞請求、回應的標準介面。</p>
+  </main>
+</body>
+</html>
