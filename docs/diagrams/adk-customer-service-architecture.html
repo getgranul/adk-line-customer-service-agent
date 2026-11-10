@@ -64,10 +64,10 @@
 <body>
 <main>
   <header>
-    <p class="eyebrow">ARCHITECTURE REVIEW · 2026-11-05</p>
+    <p class="eyebrow">ARCHITECTURE REVIEW · 2026-11-10</p>
     <h1>ADK Customer Service Agent<br>執行架構與建置相依性</h1>
     <p>一週內完成可操作、可說明設計取捨的 LINE AI 客服展示。先在本機驗證客服核心，再接 LINE、持久化與 Cloud Run；你親手執行指令，每一步都對照實際結果。</p>
-    <div class="note"><p><strong>你現在的位置：</strong>本機 HTTP 與六項 LINE 驗簽測試已通過；客服狀態機程式與九項測試已寫入，尚待執行。LINE 帳號與 Webhook 串接延後。下方部署架構是目標設計，尚未部署。</p></div>
+    <div class="note"><p><strong>你現在的位置：</strong>本機 HTTP 與六項 LINE 驗簽測試已通過；客服狀態機程式與九項測試已寫入，尚待執行。專案已建立 Git，第一個 commit 為 cb15b47。LINE 帳號與 Webhook 串接延後。下方部署架構是 2026-11-10 架構審查後的目標設計，尚未部署。</p></div>
   </header>
   <nav aria-label="圖表導覽">
     <a href="#choices">已確認與待確認選型</a>
@@ -83,16 +83,16 @@
       <thead><tr><th>項目</th><th>目前方向</th><th>實作狀態／保留的決定</th></tr></thead>
       <tbody>
         <tr><td>開發與 HTTP 入口</td><td>Python 3.12、FastAPI、Uvicorn</td><td>本機 Python 3.12.14；已安裝 FastAPI 0.162.0、Uvicorn 0.54.0。<code>GET /healthz</code> 已回傳 HTTP 200。</td></tr>
-        <tr><td>Agent 與模型</td><td>Google ADK Python、Gemini</td><td>尚未安裝 ADK、設定模型或呼叫 API。安裝前確認 ADK 相依套件相容性；Gemini 型號與區域在接入時確認，不將未驗證的型號視為已設定。</td></tr>
+        <tr><td>Agent 與模型</td><td>Google ADK Python、Gemini</td><td>尚未安裝 ADK。安裝前改用 uv 管理套件並產生 uv.lock，ADK 版本在安裝時確認。預計使用 gemini-3.5-flash，它只能走 Vertex AI global 端點，已在學習用專案 mem0-test-514112 實測可以呼叫；本專案的 GCP 專案尚未建立，正式型號在接入時確認。</td></tr>
         <tr><td>雲端執行</td><td>Cloud Run：公開入口服務＋需驗證身分的 Worker 服務</td><td>兩個部署單位可共用 Python 套件；入口負責驗簽與客服網頁，Worker 負責 Agent 與工具工作。尚未建立雲端資源。</td></tr>
-        <tr><td>持久化與工作佇列</td><td>Firestore、Cloud Tasks</td><td>保存案件狀態、訊息與工作紀錄；以 Cloud Tasks 執行耗時工作。ADK SessionService 的持久化介接仍需驗證，不能將 Firestore 案件資料直接當成完整 ADK Session。</td></tr>
-        <tr><td>條款與商業規則</td><td>一般會員查 PDF 條款；VVIP 套用程式管理的免運策略</td><td>執行期間政策固定。PDF 解析、分段、檢索實作與索引儲存方式待選；未決定使用特定向量資料庫。</td></tr>
+        <tr><td>持久化與工作佇列</td><td>Firestore（asia-east1）、Cloud Tasks、Vertex AI Session、BigQuery</td><td>Firestore 保存案件狀態、真人認領、完整訊息、待發送與去重紀錄，以交易控制併發，客服網頁用即時監聽取得新訊息；Cloud Tasks 執行耗時工作。ADK 內建的 SessionService 沒有 Firestore 版本，因此 ADK Session 改用 VertexAiSessionService。BigQuery 只存每輪處理事件供分析，不當營運資料庫，因為同一張表的並行交易會直接失敗。</td></tr>
+        <tr><td>條款與商業規則</td><td>一般會員查 PDF 條款；VVIP 套用程式管理的免運策略</td><td>執行期間政策固定。用腳本產生虛構公司的條款 PDF；建置時切分、標註會員等級與版本、向量化，索引檔打包進 Worker 映像檔，不另架向量資料庫。修改條款要重新建置與部署，流程見第 2 節的「條款離線更新路徑」。</td></tr>
         <tr><td>Tools 與外部協定</td><td>第一版使用 ADK 原生 Function Tools</td><td>業務函式與 ADK 包裝分離。MCP、排程掃描未取貨與主動提醒，保留擴充設計，這一版不實作。</td></tr>
         <tr><td>真人客服</td><td>簡單客服網頁；客人沿用 LINE 聊天室</td><td>認領、回覆、交回 AI、結案。真人回覆先保存再送出；客服登入與案件權限的具體實作待選。</td></tr>
         <tr><td>LINE 與測試身分</td><td>LINE Messaging API；只用合成會員與訂單</td><td>目前未有測試帳號，串接延後。用兩個帳號或單帳號切換合成身分尚未決定；訂單編號不能用來證明客人身分。</td></tr>
       </tbody>
     </table></div>
-    <p>未採用 Mem0 或 Redis；先以 Firestore 作為持久化方向。政策發布時間差、執行期間更新條款，以及 LINE Notify 不列入此版設計。</p>
+    <p>未採用 Mem0 或 Redis。跨案件記憶採用 Vertex AI Memory Bank，以自訂主題限制只抽取偏好、未解決問題與聯絡限制；訂單、身分與會員權益一律由 Tools 重新查詢。AI 與真人回覆一律使用 push，會計入每月訊息額度。政策發布時間差、執行期間更新條款，以及 LINE Notify 不列入此版設計。</p>
   </section>
 
   <section id="runtime">
@@ -100,71 +100,172 @@
     <div class="diagram-container">
     <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-runtime-title adk-customer-service-architecture-runtime-desc">
       <title id="adk-customer-service-architecture-runtime-title">LINE 客服目標部署架構</title>
-      <desc id="adk-customer-service-architecture-runtime-desc">LINE 訊息經公開入口驗簽並保存，再由 Cloud Tasks 以受驗證的請求驅動 ADK Worker，Worker 讀寫 Firestore、呼叫 Gemini 並發送 LINE 訊息，真人透過受保護的客服網頁接手。</desc>
+      <desc id="adk-customer-service-architecture-runtime-desc">LINE 訊息經公開入口驗簽並存入 Firestore，Cloud Tasks 以受驗證的請求驅動私有 Worker；Worker 透過 Vertex AI 呼叫 Gemini、Session 與 Memory Bank，以交易寫入 Firestore 後用 push 回覆客人，並把處理事件寫入 BigQuery；真人客服透過客服網頁接手。</desc>
       <defs>
         <marker id="runtime-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
         <marker id="runtime-http" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
       </defs>
       <rect x="0" y="0" width="1280" height="720" fill="#f5f5f5"/>
       <text x="48" y="36" class="diagram-title">接收與推理分開，案件狀態集中保存</text>
-      <text x="48" y="60" class="muted">目標設計 · 所有雲端元件尚未部署</text>
-      <rect x="312" y="112" width="288" height="408" rx="8" class="zone"/>
+      <text x="48" y="60" class="muted">目標設計 · 所有雲端元件尚未部署 · 2026-11-10 架構審查後版本</text>
+      <rect x="312" y="112" width="288" height="384" rx="8" class="zone"/>
       <text x="328" y="132" class="muted">Cloud Run 公開入口服務</text>
-      <rect x="968" y="112" width="288" height="408" rx="8" class="zone"/>
-      <text x="984" y="132" class="muted">Cloud Run Worker · IAM 驗證</text>
+      <rect x="964" y="112" width="280" height="152" rx="8" class="zone"/>
+      <text x="980" y="132" class="muted">Cloud Run Worker · 僅限 IAM 呼叫</text>
 
       <path d="M 1112 152 V 96 Q 1112 88 1104 88 H 152 Q 144 88 144 96 V 152" class="edge http" marker-end="url(#runtime-http)"/>
-      <rect x="576" y="64" width="192" height="16" class="label-mask"/><text x="672" y="76" text-anchor="middle">Messaging API 發送</text>
+      <rect x="628" y="64" width="88" height="16" class="label-mask"/><text x="672" y="76" text-anchor="middle">push 回覆</text>
       <line x1="240" y1="184" x2="336" y2="184" class="edge http" marker-end="url(#runtime-http)"/>
       <rect x="248" y="156" width="80" height="20" class="label-mask"/><text x="288" y="172" text-anchor="middle">Webhook</text>
       <line x1="576" y1="184" x2="688" y2="184" class="edge async" marker-end="url(#runtime-arrow)"/>
       <rect x="596" y="156" width="72" height="20" class="label-mask"/><text x="632" y="172" text-anchor="middle">建立工作</text>
       <line x1="880" y1="184" x2="992" y2="184" class="edge async" marker-end="url(#runtime-arrow)"/>
-      <rect x="900" y="156" width="72" height="20" class="label-mask"/><text x="936" y="172" text-anchor="middle">OIDC</text>
-      <path d="M 536 240 V 312 Q 536 320 544 320 H 744 Q 752 320 752 328 V 384" class="edge" marker-end="url(#runtime-arrow)"/>
-      <rect x="568" y="292" width="136" height="20" class="label-mask"/><text x="636" y="308" text-anchor="middle">保存事件、去重</text>
-      <path d="M 992 216 H 952 Q 944 216 944 224 V 440 Q 944 448 936 448 H 928" class="edge" marker-end="url(#runtime-arrow)"/>
+      <rect x="896" y="156" width="80" height="20" class="label-mask"/><text x="936" y="172" text-anchor="middle">OIDC 呼叫</text>
+      <path d="M 552 240 V 312 Q 552 320 560 320 H 744 Q 752 320 752 328 V 384" class="edge" marker-end="url(#runtime-arrow)"/>
+      <rect x="616" y="292" width="112" height="20" class="label-mask"/><text x="672" y="308" text-anchor="middle">存事件、去重</text>
       <line x1="576" y1="432" x2="688" y2="432" class="edge" marker-end="url(#runtime-arrow)"/>
-      <rect x="592" y="404" width="80" height="20" class="label-mask"/><text x="632" y="420" text-anchor="middle">讀寫案件</text>
-      <line x1="1112" y1="240" x2="1112" y2="384" class="edge http" marker-end="url(#runtime-http)"/>
-      <rect x="1128" y="300" width="72" height="20" class="label-mask"/><text x="1164" y="316" text-anchor="middle">模型請求</text>
+      <rect x="584" y="404" width="96" height="20" class="label-mask"/><text x="632" y="420" text-anchor="middle">讀寫、即時監聽</text>
       <line x1="240" y1="432" x2="336" y2="432" class="edge http" marker-end="url(#runtime-http)"/>
-      <rect x="248" y="444" width="80" height="20" class="label-mask"/><text x="288" y="460" text-anchor="middle">登入操作</text>
-      <path d="M 336 408 H 288 Q 280 408 280 400 V 216 Q 280 208 272 208 H 240" class="edge http" marker-end="url(#runtime-http)"/>
+      <rect x="248" y="440" width="80" height="20" class="label-mask"/><text x="288" y="456" text-anchor="middle">登入操作</text>
+      <path d="M 1016 240 V 328 Q 1016 336 1008 336 H 888 Q 880 336 880 344 V 384" class="edge" marker-end="url(#runtime-arrow)"/>
+      <rect x="908" y="308" width="80" height="20" class="label-mask"/><text x="948" y="324" text-anchor="middle">交易讀寫</text>
+      <line x1="1112" y1="240" x2="1112" y2="384" class="edge http" marker-end="url(#runtime-http)"/>
+      <rect x="1120" y="300" width="104" height="20" class="label-mask"/><text x="1172" y="316" text-anchor="middle">模型、Session</text>
+      <path d="M 1232 208 H 1252 Q 1260 208 1260 216 V 568 Q 1260 576 1252 576 H 928" class="edge async" marker-end="url(#runtime-arrow)"/>
+      <rect x="1048" y="548" width="80" height="20" class="label-mask"/><text x="1088" y="564" text-anchor="middle">處理事件</text>
 
       <rect x="48" y="152" width="192" height="88" rx="6" class="external"/>
-      <text x="64" y="180" class="name">LINE 官方帳號</text><text x="64" y="204" class="muted">客人訊息／Messaging API</text><text x="64" y="224" class="muted">帳號串接延後</text>
+      <text x="64" y="180" class="name">LINE 平台</text><text x="64" y="204" class="muted">客人沿用原本的聊天室</text><text x="64" y="224" class="muted">webhook 2 秒內要回應</text>
       <rect x="336" y="152" width="240" height="88" rx="6" class="box"/>
-      <text x="352" y="180" class="name">FastAPI 訊息入口</text><text x="352" y="204" class="muted">原始內容驗簽 → 保存 → 排入工作</text><text x="352" y="224" class="muted">完成可靠接收後才回應 LINE</text>
+      <text x="352" y="180" class="name">公開入口服務</text><text x="352" y="204" class="muted">驗簽 → 存事件 → 建立工作</text><text x="352" y="224" class="muted">存好才回 HTTP 200</text>
       <rect x="688" y="152" width="192" height="88" rx="6" class="external"/>
-      <text x="704" y="180" class="name">Cloud Tasks</text><text x="704" y="204" class="muted">非同步執行、重試與限流</text><text x="704" y="224" class="muted">不假設只投遞一次</text>
+      <text x="704" y="180" class="name">Cloud Tasks</text><text x="704" y="204" class="muted">排隊、重試、限流</text><text x="704" y="224" class="muted">可能重複投遞</text>
       <rect x="992" y="152" width="240" height="88" rx="6" class="focal"/>
-      <text x="1008" y="180" class="name">ADK 客服 Worker</text><text x="1008" y="204" class="muted">狀態檢查、Tools、RAG、回覆</text><text x="1008" y="224" class="muted">讀寫 Firestore／發送前再檢查</text>
+      <text x="1008" y="180" class="name">ADK 客服 Worker</text><text x="1008" y="204" class="muted">狀態檢查、Tools、條款檢索</text><text x="1008" y="224" class="muted">條款索引隨映像檔部署</text>
       <rect x="48" y="384" width="192" height="88" rx="6" class="external"/>
-      <text x="64" y="412" class="name">真人客服</text><text x="64" y="436" class="muted">讀取、認領、回覆、結案</text><text x="64" y="456" class="muted">客人繼續使用 LINE 聊天室</text>
+      <text x="64" y="412" class="name">真人客服</text><text x="64" y="436" class="muted">認領、回覆、交回 AI</text><text x="64" y="456" class="muted">結案</text>
       <rect x="336" y="384" width="240" height="88" rx="6" class="box"/>
-      <text x="352" y="412" class="name">客服網頁與操作 API</text><text x="352" y="436" class="muted">登入與案件權限檢查</text><text x="352" y="456" class="muted">真人回覆也先保存再發送</text>
+      <text x="352" y="412" class="name">客服網頁與操作 API</text><text x="352" y="436" class="muted">跟入口同一個服務</text><text x="352" y="456" class="muted">真人回覆也先存再 push</text>
       <rect x="688" y="384" width="240" height="128" rx="6" class="store"/>
-      <text x="704" y="412" class="name">Firestore</text><text x="704" y="436" class="muted">案件模式／revision／客服認領</text><text x="704" y="460" class="muted">客人、AI、真人的完整訊息紀錄</text><text x="704" y="484" class="muted">工作狀態、待發送紀錄、去重資料</text><text x="704" y="504" class="muted">ADK Session 介接仍待驗證</text>
+      <text x="704" y="412" class="name">Firestore · asia-east1</text><text x="704" y="436" class="muted">案件模式、revision、認領</text><text x="704" y="460" class="muted">完整訊息、待發送、去重</text><text x="704" y="484" class="muted">新訊息即時推送給客服網頁</text>
       <rect x="992" y="384" width="240" height="88" rx="6" class="external"/>
-      <text x="1008" y="412" class="name">Gemini</text><text x="1008" y="436" class="muted">由 ADK 呼叫模型</text><text x="1008" y="456" class="muted">限定本輪 Context 與可用工具</text>
-      <text x="48" y="568">圖中各箭頭表示主要請求或資料操作；一般 API 回應省略。Firestore 是共用服務，並非位於 Cloud Run 容器內。</text>
-      <text x="48" y="596" class="muted">部署前補齊：入口與 Worker 的服務帳號權限、憑證注入、客服登入、請求識別碼、錯誤與成本監控。</text>
-      <text x="48" y="624" class="muted">待發送紀錄保存要送的內容與處理狀態；實際發送、重試和去重都由後端控制。</text>
+      <text x="1008" y="412" class="name">Vertex AI · global</text><text x="1008" y="436" class="muted">Gemini 模型</text><text x="1008" y="456" class="muted">Session、Memory Bank</text>
+      <rect x="688" y="544" width="240" height="64" rx="6" class="store"/>
+      <text x="704" y="568" class="name">BigQuery</text><text x="704" y="592" class="muted">每輪處理事件：延遲、token</text>
+      <text x="48" y="640" class="muted">Firestore 用台灣 asia-east1；Vertex AI 用 global 端點；條款索引在建置時產生，執行期間不更新。</text>
       <line x1="48" y1="660" x2="1232" y2="660" class="rule"/>
       <line x1="48" y1="692" x2="88" y2="692" class="edge http" marker-end="url(#runtime-http)"/><text x="100" y="696" class="muted">HTTP／外部 API</text>
       <line x1="328" y1="692" x2="368" y2="692" class="edge" marker-end="url(#runtime-arrow)"/><text x="380" y="696" class="muted">資料操作</text>
-      <line x1="560" y1="692" x2="600" y2="692" class="edge async" marker-end="url(#runtime-arrow)"/><text x="612" y="696" class="muted">工作佇列</text>
+      <line x1="560" y1="692" x2="600" y2="692" class="edge async" marker-end="url(#runtime-arrow)"/><text x="612" y="696" class="muted">非同步工作</text>
       <rect x="800" y="680" width="32" height="24" rx="4" class="zone"/><text x="844" y="696" class="muted">服務部署邊界</text>
+      <rect x="1000" y="680" width="32" height="24" rx="6" class="focal"/><text x="1044" y="696" class="muted">AI 推理核心</text>
+    </svg></div>
+    <h3>一則訊息的處理時序</h3>
+    <div class="diagram-container">
+    <svg viewBox="0 0 1280 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-sequence-title adk-customer-service-architecture-sequence-desc">
+      <title id="adk-customer-service-architecture-sequence-title">一則客人訊息從接收到回覆的時序</title>
+      <desc id="adk-customer-service-architecture-sequence-desc">公開入口驗簽並存入 Firestore、建立 Cloud Tasks 工作後在 2 秒內回應 LINE；Cloud Tasks 派送工作給 Worker，Worker 讀取案件狀態、呼叫 Vertex AI、以交易比對 revision 後用 push 回覆客人，再寫入 BigQuery 事件並回應 Cloud Tasks。</desc>
+      <defs>
+        <marker id="sequence-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="sequence-http" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="sequence-accent" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+        <marker id="sequence-open" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polyline points="0 0, 8 3, 0 6" fill="none" stroke="#4f5d75" stroke-width="1.2"/></marker>
+      </defs>
+      <rect x="0" y="0" width="1280" height="800" fill="#f5f5f5"/>
+      <text x="48" y="40" class="diagram-title">先存好再回 LINE，回覆前再確認一次狀態</text>
+      <text x="48" y="68" class="muted">目標流程 · 一般 AI 回覆的正常路徑；轉接與真人回覆共用同一套發送檢查</text>
+
+      <line x1="160" y1="144" x2="160" y2="700" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="400" y1="144" x2="400" y2="700" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="640" y1="144" x2="640" y2="700" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="880" y1="144" x2="880" y2="700" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="1120" y1="144" x2="1120" y2="700" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+      <rect x="396" y="188" width="8" height="144" fill="rgba(45,49,66,0.06)" stroke="#4f5d75" stroke-width="0.8"/>
+      <rect x="876" y="368" width="8" height="304" fill="rgba(45,49,66,0.06)" stroke="#4f5d75" stroke-width="0.8"/>
+
+      <line x1="160" y1="200" x2="396" y2="200" class="edge http" marker-end="url(#sequence-http)"/>
+      <rect x="232" y="172" width="96" height="20" class="label-mask"/><text x="280" y="188" text-anchor="middle">Webhook POST</text>
+      <line x1="404" y1="240" x2="1120" y2="240" class="edge" marker-end="url(#sequence-arrow)"/>
+      <rect x="700" y="212" width="124" height="20" class="label-mask"/><text x="762" y="228" text-anchor="middle">驗簽、存事件、去重</text>
+      <line x1="404" y1="280" x2="640" y2="280" class="edge" marker-end="url(#sequence-arrow)"/>
+      <rect x="484" y="252" width="72" height="20" class="label-mask"/><text x="520" y="268" text-anchor="middle">建立工作</text>
+      <line x1="396" y1="320" x2="160" y2="320" class="edge async" marker-end="url(#sequence-arrow)"/>
+      <rect x="214" y="292" width="132" height="20" class="label-mask"/><text x="280" y="308" text-anchor="middle">HTTP 200（2 秒內）</text>
+      <line x1="640" y1="380" x2="876" y2="380" class="edge http" marker-end="url(#sequence-http)"/>
+      <rect x="700" y="352" width="120" height="20" class="label-mask"/><text x="760" y="368" text-anchor="middle">派送工作（OIDC）</text>
+      <line x1="884" y1="420" x2="1120" y2="420" class="edge" marker-end="url(#sequence-arrow)"/>
+      <rect x="928" y="392" width="144" height="20" class="label-mask"/><text x="1000" y="408" text-anchor="middle">讀案件模式、revision</text>
+      <path d="M 884 460 H 920 Q 928 460 928 468 V 476 Q 928 484 920 484 H 888" class="edge http" marker-end="url(#sequence-http)"/>
+      <rect x="936" y="462" width="104" height="20" class="label-mask"/><text x="940" y="478">呼叫 Vertex AI</text>
+      <line x1="884" y1="520" x2="1120" y2="520" class="edge" marker-end="url(#sequence-arrow)"/>
+      <rect x="932" y="492" width="136" height="20" class="label-mask"/><text x="1000" y="508" text-anchor="middle">交易：比對 revision</text>
+      <line x1="876" y1="560" x2="160" y2="560" fill="none" stroke="#bf4520" stroke-width="1.5" marker-end="url(#sequence-accent)"/>
+      <rect x="472" y="532" width="96" height="20" class="label-mask"/><text x="520" y="548" text-anchor="middle">push 回覆客人</text>
+      <path d="M 884 600 H 920 Q 928 600 928 608 V 616 Q 928 624 920 624 H 888" class="edge async" marker-end="url(#sequence-open)"/>
+      <rect x="936" y="602" width="124" height="20" class="label-mask"/><text x="940" y="618">寫 BigQuery 事件</text>
+      <line x1="876" y1="664" x2="640" y2="664" class="edge async" marker-end="url(#sequence-arrow)"/>
+      <rect x="720" y="636" width="80" height="20" class="label-mask"/><text x="760" y="652" text-anchor="middle">回應 2xx</text>
+
+      <rect x="64" y="96" width="192" height="48" rx="6" class="external"/><text x="160" y="125" text-anchor="middle" class="name">LINE 平台</text>
+      <rect x="304" y="96" width="192" height="48" rx="6" class="box"/><text x="400" y="125" text-anchor="middle" class="name">公開入口服務</text>
+      <rect x="544" y="96" width="192" height="48" rx="6" class="external"/><text x="640" y="125" text-anchor="middle" class="name">Cloud Tasks</text>
+      <rect x="784" y="96" width="192" height="48" rx="6" class="focal"/><text x="880" y="125" text-anchor="middle" class="name">ADK 客服 Worker</text>
+      <rect x="1024" y="96" width="192" height="48" rx="6" class="store"/><text x="1120" y="125" text-anchor="middle" class="name">Firestore</text>
+      <text x="48" y="732" class="muted">Worker 沒回 2xx 時 Cloud Tasks 會重送；webhookEventId 擋重複事件，revision 擋轉接後才完成的舊回覆。</text>
+      <line x1="48" y1="756" x2="1232" y2="756" class="rule"/>
+      <line x1="48" y1="784" x2="88" y2="784" class="edge http" marker-end="url(#sequence-http)"/><text x="100" y="788" class="muted">HTTP／外部 API</text>
+      <line x1="288" y1="784" x2="328" y2="784" class="edge" marker-end="url(#sequence-arrow)"/><text x="340" y="788" class="muted">內部呼叫</text>
+      <line x1="480" y1="784" x2="520" y2="784" class="edge async" marker-end="url(#sequence-arrow)"/><text x="532" y="788" class="muted">回應</text>
+      <line x1="640" y1="784" x2="680" y2="784" class="edge async" marker-end="url(#sequence-open)"/><text x="692" y="788" class="muted">不等結果的寫入</text>
+      <line x1="880" y1="784" x2="920" y2="784" stroke="#bf4520" stroke-width="1.5" marker-end="url(#sequence-accent)"/><text x="932" y="788" class="muted">客人收到的回覆</text>
     </svg></div>
     <h3>記憶與 Context 分開設計</h3>
+    <div class="diagram-container">
+    <svg viewBox="0 0 1280 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-memory-title adk-customer-service-architecture-memory-desc">
+      <title id="adk-customer-service-architecture-memory-title">客戶、案件、對話與本輪 Context 的資料分工</title>
+      <desc id="adk-customer-service-architecture-memory-desc">記憶由外而內分為客戶層 Memory Bank、案件層 Firestore、對話層 Vertex AI Session 與本輪 Context；訂單、身分與會員權益由 Tools 每次重新查詢，條款片段來自映像檔內的索引，兩者經授權後才放入本輪 Context；BigQuery 只存分析事件。</desc>
+      <defs><marker id="memory-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs>
+      <rect x="0" y="0" width="1280" height="600" fill="#f5f5f5"/>
+      <text x="48" y="40" class="diagram-title">記憶分四層，訂單與權益不進記憶</text>
+      <text x="48" y="68" class="muted">外層範圍大、保存久；內層只存在於一次互動</text>
+
+      <rect x="48" y="104" width="832" height="400" rx="8" fill="rgba(45,49,66,0.015)" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <rect x="80" y="168" width="768" height="312" rx="8" fill="rgba(45,49,66,0.025)" stroke="#4f5d75" stroke-width="1"/>
+      <rect x="112" y="232" width="704" height="224" rx="8" fill="rgba(45,49,66,0.025)" stroke="#2d3142" stroke-width="1"/>
+      <rect x="144" y="296" width="640" height="136" rx="8" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1.5"/>
+      <text x="72" y="136" class="name">客戶層 · Vertex AI Memory Bank</text>
+      <text x="72" y="156" class="muted">跨案件保存：偏好、未解決問題、聯絡限制，例如不要打電話</text>
+      <text x="104" y="200" class="name">案件層 · Firestore</text>
+      <text x="104" y="220" class="muted">一次服務到結案：模式、revision、真人認領、完整訊息紀錄</text>
+      <text x="136" y="264" class="name">對話層 · Vertex AI Session</text>
+      <text x="136" y="284" class="muted">同一案件的模型互動：對話事件、工具事件、state</text>
+      <text x="168" y="328" class="name">本輪 Context · 送進 Gemini</text>
+      <text x="168" y="352" class="muted">本輪問題＋最近對話＋案件摘要</text>
+      <text x="168" y="372" class="muted">＋經授權的訂單結果與條款片段</text>
+      <text x="168" y="392" class="muted">受 token 預算限制，長對話先摘要</text>
+
+      <path d="M 928 168 H 900 Q 892 168 892 176 V 356 Q 892 364 884 364 H 784" class="edge" marker-end="url(#memory-arrow)"/>
+      <path d="M 928 280 H 912 Q 904 280 904 288 V 388 Q 904 396 896 396 H 784" class="edge" marker-end="url(#memory-arrow)"/>
+
+      <rect x="928" y="104" width="304" height="104" rx="6" class="focal"/>
+      <text x="944" y="132" class="name">訂單、身分、會員權益</text><text x="944" y="156" class="muted">Tools 用可信身分每次重新查詢</text><text x="944" y="176" class="muted">不存進任何一層記憶</text>
+      <rect x="928" y="240" width="304" height="80" rx="6" class="store"/>
+      <text x="944" y="268" class="name">條款索引 · 映像檔內</text><text x="944" y="292" class="muted">唯讀，依會員等級過濾片段</text>
+      <rect x="928" y="352" width="304" height="80" rx="6" class="store"/>
+      <text x="944" y="380" class="name">BigQuery</text><text x="944" y="404" class="muted">每輪處理事件，只供分析，不回給模型</text>
+      <text x="48" y="532" class="muted">客人在 LINE 看到的是同一個聊天室；「案件」是後端定義，結案後的新訊息會開新案件與新 Session。</text>
+      <line x1="48" y1="552" x2="1232" y2="552" class="rule"/>
+      <rect x="48" y="568" width="32" height="24" rx="8" fill="rgba(45,49,66,0.015)" stroke="rgba(45,49,66,0.35)" stroke-width="1"/><text x="92" y="584" class="muted">保存範圍，由外而內縮小</text>
+      <rect x="360" y="568" width="32" height="24" rx="6" class="store"/><text x="404" y="584" class="muted">記憶以外的資料來源</text>
+      <line x1="640" y1="580" x2="680" y2="580" class="edge" marker-end="url(#memory-arrow)"/><text x="692" y="584" class="muted">授權後放入本輪 Context</text>
+    </svg></div>
     <div class="table-container"><table>
       <thead><tr><th>保存的內容</th><th>負責什麼</th><th>不能拿來代替什麼</th></tr></thead>
       <tbody>
         <tr><td>案件狀態</td><td>誰可以處理、模式、revision、真人認領。狀態切換必須由後端與資料庫交易控制。</td><td>模型 Prompt 與特殊文字 Tag 無法提供跨執行個體的互斥控制。</td></tr>
         <tr><td>完整訊息紀錄</td><td>客人、AI、真人原文，作為客服畫面、稽核與重新整理 Context 的來源。</td><td>保存全部原文，不代表每輪都要送全部原文給模型。</td></tr>
-        <tr><td>ADK Session 與 State</td><td>同一案件中的模型互動、工具事件與對話工作資料。先讓持久化介接通過重啟與還原測試。</td><td>案件資料表不會自動成為 ADK 可正確還原的 Session；需實作或選用相容的 SessionService。</td></tr>
-        <tr><td>跨 Session 記憶</td><td>新案件可取得必要的客戶事實與已結案摘要，按客戶身分隔離；訂單與權益仍重新查詢。</td><td>不能把上一個案件的未驗證推測、舊政策或舊權益當成目前事實。</td></tr>
+        <tr><td>ADK Session 與 State</td><td>同一案件中的模型互動、工具事件與對話工作資料，存在 Vertex AI 代管的 Session；需通過重啟與還原測試。</td><td>Firestore 的案件資料不能代替 ADK Session；ADK 內建的 SessionService 沒有 Firestore 版本。</td></tr>
+        <tr><td>跨 Session 記憶</td><td>結案時交給 Vertex AI Memory Bank 抽取，自訂主題只允許偏好、未解決問題、聯絡限制，並以客戶身分為範圍隔離；訂單與權益仍重新查詢。</td><td>不能把上一個案件的未驗證推測、舊政策或舊權益當成目前事實。</td></tr>
         <tr><td>模型 Context</td><td>本輪問題＋最近對話＋案件摘要＋經授權的訂單與政策片段，限制 token 預算。</td><td>大型 Context Window 不能代替摘要策略、事實保存與長對話評估。</td></tr>
       </tbody>
     </table></div>
@@ -227,6 +328,50 @@
       <li><strong>情緒與能力判斷仍需評估。</strong>明確要求真人可用確定規則；嚴重情緒與能力不足可結合分類與工具結果，需用案例測試誤判率。模型不得只靠輸出特殊 Tag 改變案件狀態。</li>
     </ol>
     <p>「發送前再檢查」尚未實作；狀態機的布林判斷本身不構成併發鎖。後續必須以交易式發送授權與待發送紀錄控制重試；已交給外部 API 的訊息無法靠狀態切換撤回。</p>
+    <h3>條款離線更新路徑</h3>
+    <div class="diagram-container">
+    <svg viewBox="0 0 1280 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-policy-title adk-customer-service-architecture-policy-desc">
+      <title id="adk-customer-service-architecture-policy-title">條款建立與修改的離線更新路徑</title>
+      <desc id="adk-customer-service-architecture-policy-desc">腳本產生或修改虛構公司的條款 PDF，經切分、標註會員等級與版本、向量化後產出索引檔，打包進 Worker 映像檔，部署新版本後新條款才生效，再以固定問題驗證答案變化。</desc>
+      <defs><marker id="policy-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs>
+      <rect x="0" y="0" width="1280" height="560" fill="#f5f5f5"/>
+      <text x="48" y="40" class="diagram-title">條款只在建置時更新，執行期間固定</text>
+      <text x="48" y="68" class="muted">腳本產生虛構公司條款 PDF · 修改條款要重新建置與部署</text>
+      <rect x="40" y="104" width="1200" height="140" rx="8" class="zone"/>
+      <text x="56" y="124" class="muted">建置時：本機或 CI</text>
+      <rect x="520" y="284" width="720" height="136" rx="8" class="zone"/>
+      <text x="536" y="304" class="muted">部署後</text>
+
+      <line x1="264" y1="188" x2="296" y2="188" class="edge" marker-end="url(#policy-arrow)"/>
+      <line x1="504" y1="188" x2="536" y2="188" class="edge" marker-end="url(#policy-arrow)"/>
+      <line x1="744" y1="188" x2="776" y2="188" class="edge" marker-end="url(#policy-arrow)"/>
+      <line x1="984" y1="188" x2="1016" y2="188" class="edge" marker-end="url(#policy-arrow)"/>
+      <line x1="1120" y1="228" x2="1120" y2="324" class="edge" marker-end="url(#policy-arrow)"/>
+      <line x1="1016" y1="364" x2="984" y2="364" class="edge" marker-end="url(#policy-arrow)"/>
+      <line x1="776" y1="364" x2="744" y2="364" class="edge" marker-end="url(#policy-arrow)"/>
+
+      <rect x="56" y="148" width="208" height="80" rx="6" class="box"/>
+      <text x="72" y="176" class="name">撰寫或修改條款</text><text x="72" y="200" class="muted">腳本產生 PDF，附版本號</text>
+      <rect x="296" y="148" width="208" height="80" rx="6" class="box"/>
+      <text x="312" y="176" class="name">解析與切分</text><text x="312" y="200" class="muted">依條款段落切成片段</text>
+      <rect x="536" y="148" width="208" height="80" rx="6" class="box"/>
+      <text x="552" y="176" class="name">標註與向量化</text><text x="552" y="200" class="muted">會員等級、條款版本</text><text x="552" y="218" class="muted technical">gemini-embedding-2</text>
+      <rect x="776" y="148" width="208" height="80" rx="6" class="box"/>
+      <text x="792" y="176" class="name">產出索引檔</text><text x="792" y="200" class="muted">片段＋向量＋標籤</text>
+      <rect x="1016" y="148" width="208" height="80" rx="6" class="focal"/>
+      <text x="1032" y="176" class="name">打包進映像檔</text><text x="1032" y="200" class="muted">跟 Worker 程式一起建置</text>
+      <rect x="1016" y="324" width="208" height="80" rx="6" class="external"/>
+      <text x="1032" y="352" class="name">部署新版本</text><text x="1032" y="376" class="muted">Cloud Run 新修訂版</text>
+      <rect x="776" y="324" width="208" height="80" rx="6" class="box"/>
+      <text x="792" y="352" class="name">新條款生效</text><text x="792" y="376" class="muted">上線後的查詢才用新版</text>
+      <rect x="536" y="324" width="208" height="80" rx="6" class="box"/>
+      <text x="552" y="352" class="name">驗證答案變化</text><text x="552" y="376" class="muted">固定問題對照新舊版本</text>
+      <text x="48" y="460" class="muted">服務運作中不重新讀取條款，同一段對話不會前後套用不同版本；索引記錄條款版本號，回覆可追溯依據哪一版。</text>
+      <line x1="48" y1="504" x2="1232" y2="504" class="rule"/>
+      <line x1="48" y1="532" x2="88" y2="532" class="edge" marker-end="url(#policy-arrow)"/><text x="100" y="536" class="muted">處理順序</text>
+      <rect x="280" y="520" width="32" height="24" rx="4" class="zone"/><text x="324" y="536" class="muted">執行階段</text>
+      <rect x="480" y="520" width="32" height="24" rx="6" class="focal"/><text x="524" y="536" class="muted">讓條款固定的關鍵步驟</text>
+    </svg></div>
   </section>
 
   <section id="state">
@@ -279,52 +424,45 @@
     <div class="diagram-container">
     <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-dependencies-title adk-customer-service-architecture-dependencies-desc">
       <title id="adk-customer-service-architecture-dependencies-title">從本機核心到雲端展示的任務相依性</title>
-      <desc id="adk-customer-service-architecture-dependencies-desc">本機基礎支援狀態規則與持久化資料，這兩項共同支援 ADK 客服核心與真人網頁，LINE 帳號另支援 Webhook 串接，三條工作線最後匯合為 Cloud Run 部署與端到端驗收。</desc>
+      <desc id="adk-customer-service-architecture-dependencies-desc">本機基礎支援本機合成訊息流程，再接 Firestore 持久化；GCP 專案、uv 與 ADK 安裝、Firestore 共同支援 ADK 客服核心；Firestore 另支援真人客服網頁；ADK 核心、真人網頁與延後的 LINE 帳號最後匯合為 Cloud Run 部署與驗收。</desc>
       <defs><marker id="dependency-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs>
       <rect x="0" y="0" width="1280" height="720" fill="#f5f5f5"/>
       <text x="48" y="40" class="diagram-title">LINE 帳號可以晚接，客服核心先在本機驗證</text>
-      <text x="48" y="72" class="muted">箭頭＝前項是後項的先決條件；方框狀態以本次檔案與你貼回的結果為準</text>
-      <path d="M 384 140 H 280 Q 272 140 272 148 V 264" class="edge" marker-end="url(#dependency-arrow)"/>
-      <path d="M 544 152 H 584 Q 592 152 592 160 V 264" class="edge" marker-end="url(#dependency-arrow)"/>
-      <path d="M 544 128 H 920 Q 928 128 928 136 V 436 Q 928 444 936 444 H 1008" class="edge" marker-end="url(#dependency-arrow)"/>
-      <line x1="1088" y1="168" x2="1088" y2="416" class="edge async" marker-end="url(#dependency-arrow)"/>
-      <line x1="248" y1="320" x2="248" y2="416" class="edge" marker-end="url(#dependency-arrow)"/>
-      <line x1="632" y1="320" x2="632" y2="416" class="edge" marker-end="url(#dependency-arrow)"/>
-      <path d="M 352 280 H 440 Q 448 280 448 288 V 376 Q 448 384 456 384 H 544 Q 552 384 552 392 V 416" class="edge" marker-end="url(#dependency-arrow)"/>
-      <path d="M 512 308 H 456 a 8 8 0 0 0 -16 0 H 424 Q 416 308 416 316 V 352 Q 416 360 408 360 H 312 Q 304 360 304 368 V 416" class="edge" marker-end="url(#dependency-arrow)"/>
-      <path d="M 272 472 V 588 Q 272 596 280 596 H 512" class="edge" marker-end="url(#dependency-arrow)"/>
-      <line x1="592" y1="472" x2="592" y2="568" class="edge" marker-end="url(#dependency-arrow)"/>
-      <path d="M 1088 472 V 588 Q 1088 596 1080 596 H 672" class="edge" marker-end="url(#dependency-arrow)"/>
+      <text x="48" y="72" class="muted">箭頭＝前項是後項的先決條件 · 狀態以 2026-11-10 的檔案與驗證結果為準</text>
 
-      <rect x="384" y="112" width="160" height="56" rx="6" class="box"/>
-      <rect x="500" y="116" width="40" height="12" rx="2" class="badge"/><text x="520" y="125" text-anchor="middle" class="badge-text">3 in</text>
-      <text x="396" y="140" class="name">本機 HTTP／驗簽</text><text x="396" y="160" class="muted">已驗證</text>
-      <rect x="1008" y="112" width="160" height="56" rx="6" class="external"/>
-      <rect x="1124" y="116" width="40" height="12" rx="2" class="badge"/><text x="1144" y="125" text-anchor="middle" class="badge-text">1 in</text>
-      <text x="1020" y="140" class="name">LINE 帳號與憑證</text><text x="1020" y="160" class="muted">延後，不擋本機核心</text>
-      <rect x="192" y="264" width="160" height="56" rx="6" class="box"/>
-      <rect x="308" y="268" width="40" height="12" rx="2" class="badge"/><text x="328" y="277" text-anchor="middle" class="badge-text">2 in</text>
-      <text x="204" y="292" class="name">客服狀態規則</text><text x="204" y="312" class="muted">已寫，九項測試待執行</text>
-      <rect x="512" y="264" width="160" height="56" rx="6" class="box"/>
-      <rect x="628" y="268" width="40" height="12" rx="2" class="badge"/><text x="648" y="277" text-anchor="middle" class="badge-text">2 in</text>
-      <text x="524" y="292" class="name">持久化與測試資料</text><text x="524" y="312" class="muted">待做：Firestore／權限</text>
-      <rect x="192" y="416" width="160" height="56" rx="6" class="box"/>
-      <rect x="308" y="420" width="40" height="12" rx="2" class="badge"/><text x="328" y="429" text-anchor="middle" class="badge-text">1 in</text>
-      <text x="204" y="444" class="name">ADK／Tools／RAG</text><text x="204" y="464" class="muted">待做：本機客服流程</text>
-      <rect x="512" y="416" width="160" height="56" rx="6" class="box"/>
-      <rect x="628" y="420" width="40" height="12" rx="2" class="badge"/><text x="648" y="429" text-anchor="middle" class="badge-text">1 in</text>
-      <text x="524" y="444" class="name">真人客服網頁</text><text x="524" y="464" class="muted">待做：登入／認領／回覆</text>
-      <rect x="1008" y="416" width="160" height="56" rx="6" class="box"/>
-      <rect x="1124" y="420" width="40" height="12" rx="2" class="badge"/><text x="1144" y="429" text-anchor="middle" class="badge-text">1 in</text>
-      <text x="1020" y="444" class="name">LINE Webhook</text><text x="1020" y="464" class="muted">延後：事件與回覆串接</text>
-      <rect x="512" y="568" width="160" height="56" rx="6" class="external"/>
-      <rect x="628" y="572" width="40" height="12" rx="2" class="badge"/><text x="648" y="581" text-anchor="middle" class="badge-text">0 in</text>
-      <text x="524" y="596" class="name">Cloud Run 完整驗收</text><text x="524" y="616" class="muted">Tasks／IAM／重試／展示</text>
-      <text x="48" y="648" class="muted">持久化與測試資料合併呈現：含客戶綁定、訂單所有權、訊息紀錄、Session 介接與案件交易。</text>
+      <line x1="176" y1="184" x2="176" y2="288" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="288" y1="324" x2="352" y2="324" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="432" y1="184" x2="432" y2="288" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 528 184 V 228 Q 528 236 536 236 H 664 Q 672 236 672 244 V 288" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="784" y1="184" x2="784" y2="288" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="576" y1="324" x2="640" y2="324" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="464" y1="360" x2="464" y2="456" class="edge" marker-end="url(#dependency-arrow)"/>
+      <line x1="752" y1="376" x2="752" y2="560" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 464 528 V 588 Q 464 596 472 596 H 640" class="edge" marker-end="url(#dependency-arrow)"/>
+      <path d="M 1040 184 V 588 Q 1040 596 1032 596 H 864" class="edge async" marker-end="url(#dependency-arrow)"/>
+
+      <rect x="64" y="112" width="224" height="72" rx="6" class="box"/>
+      <text x="80" y="140" class="name">本機 HTTP、驗簽、狀態規則</text><text x="80" y="164" class="muted">驗簽 6 項通過；狀態機待測</text>
+      <rect x="352" y="112" width="224" height="72" rx="6" class="box"/>
+      <text x="368" y="140" class="name">GCP 專案與憑證</text><text x="368" y="164" class="muted">待做：另建 LINE 客服專案</text>
+      <rect x="640" y="112" width="224" height="72" rx="6" class="box"/>
+      <text x="656" y="140" class="name">uv 與 ADK 安裝</text><text x="656" y="164" class="muted">待做：版本在安裝時確認</text>
+      <rect x="928" y="112" width="224" height="72" rx="6" class="external"/>
+      <text x="944" y="140" class="name">LINE 帳號與 Webhook</text><text x="944" y="164" class="muted">延後，不擋本機核心</text>
+      <rect x="64" y="288" width="224" height="72" rx="6" class="box"/>
+      <text x="80" y="316" class="name">本機合成訊息流程</text><text x="80" y="340" class="muted">待做：轉接、認領、交回 AI</text>
+      <rect x="352" y="288" width="224" height="72" rx="6" class="box"/>
+      <text x="368" y="316" class="name">Firestore 持久化</text><text x="368" y="340" class="muted">待做：交易、去重、訂單所有權</text>
+      <rect x="640" y="288" width="224" height="88" rx="6" class="focal"/>
+      <text x="656" y="316" class="name">ADK 客服核心</text><text x="656" y="340" class="muted">Vertex Session、Memory Bank</text><text x="656" y="360" class="muted">Tools、條款索引、Gemini</text>
+      <rect x="352" y="456" width="224" height="72" rx="6" class="box"/>
+      <text x="368" y="484" class="name">真人客服網頁</text><text x="368" y="508" class="muted">待做：登入方式之後決定</text>
+      <rect x="640" y="560" width="224" height="72" rx="6" class="external"/>
+      <text x="656" y="588" class="name">Cloud Run 部署與驗收</text><text x="656" y="612" class="muted">Tasks、IAM、push、BigQuery</text>
       <line x1="48" y1="668" x2="1232" y2="668" class="rule"/>
       <line x1="48" y1="692" x2="88" y2="692" class="edge" marker-end="url(#dependency-arrow)"/><text x="100" y="696" class="muted">先決條件 → 後續工作</text>
       <line x1="384" y1="692" x2="424" y2="692" class="edge async" marker-end="url(#dependency-arrow)"/><text x="436" y="696" class="muted">延後的外部前提</text>
-      <text x="736" y="696" class="muted">in 數字＝有幾項直接後續工作依賴此項</text>
+      <rect x="704" y="680" width="32" height="24" rx="6" class="focal"/><text x="748" y="696" class="muted">核心工作</text>
     </svg></div>
     <h3>建置順序與每一步的驗收</h3>
     <div class="table-container"><table>
@@ -332,25 +470,25 @@
       <tbody>
         <tr><td>本機基礎與驗簽</td><td>現有 Python 虛擬環境、HTTP 入口與原始內容簽章驗證。</td><td>已取得 <code>/healthz</code> HTTP 200，以及使用者回報的六項測試 <code>OK</code>。</td></tr>
         <tr><td>客服狀態規則</td><td>現有狀態機；先驗證合法切換與舊 AI 回覆失效。</td><td>九項新增測試待執行；加上驗簽應共十五項通過。這只驗證純規則，不證明分散式競爭已解決。</td></tr>
-        <tr><td>本機流程與持久化</td><td>狀態規則通過後，先用合成事件、明確標為測試用的儲存介面走流程，再接 Firestore；定義資料模型、交易與 Session 介接。</td><td>同案件訊息能保存、重啟能還原、不同客人無法互查訂單；相同事件重送不造成重複處理。測試替身不能作為雲端完成證據。</td></tr>
-        <tr><td>ADK、Tools 與條款檢索</td><td>合成會員與訂單、固定 PDF、Gemini 憑證與模型設定；工具使用可信身分，不接受模型自行指定客戶。</td><td>一般會員與 VVIP 回答符合各自政策；查別人訂單被拒；多輪追問、代名詞與跨案件必要記憶可驗證；長對話受 Context 預算限制。</td></tr>
+        <tr><td>本機流程與持久化</td><td>狀態規則通過後，先用合成事件、明確標為測試用的儲存介面走流程，再接 Firestore；定義資料模型與交易。ADK Session 由 Vertex AI 代管，不在 Firestore 實作。</td><td>同案件訊息能保存、重啟能還原、不同客人無法互查訂單；相同事件重送不造成重複處理。測試替身不能作為雲端完成證據。</td></tr>
+        <tr><td>ADK、Tools 與條款檢索</td><td>先改用 uv 並安裝 ADK、建立 LINE 客服專用的 GCP 專案；合成會員與訂單、腳本產生的條款 PDF 與建置時索引、Vertex AI Session 與 Memory Bank；工具使用可信身分，不接受模型自行指定客戶。</td><td>一般會員與 VVIP 回答符合各自政策；查別人訂單被拒；多輪追問、代名詞與跨案件必要記憶可驗證；長對話受 Context 預算限制。</td></tr>
         <tr><td>真人客服網頁</td><td>共用案件與訊息服務，加入登入、認領者驗證與發送介面。</td><td>真人完整看到客人與 AI 訊息；真人回覆保存；兩位客服不能同時認領；只有授權客服能釋放案件或結案。</td></tr>
         <tr><td>LINE 串接</td><td>測試帳號準備好後再做。既有驗簽接上 Webhook，加入事件去重與身分綁定。</td><td>原始內容先驗簽再解析；未可靠保存與安排工作前不確認接收；測試事件可處理，真實客戶事件可回覆。</td></tr>
-        <tr><td>佇列與雲端部署</td><td>本機流程通過後，接 Cloud Tasks、Worker IAM、可靠發送與監控，再整合兩個 Cloud Run 服務。</td><td>重試不重複副作用、異常可追蹤、同案件工作有排序與互斥；真人切換後禁止新 AI 發送授權，並量測在途訊息的邊界。</td></tr>
+        <tr><td>佇列與雲端部署</td><td>本機流程通過後，接 Cloud Tasks、Worker IAM、push 發送、BigQuery 處理事件與監控，再整合兩個 Cloud Run 服務。</td><td>重試不重複副作用、異常可追蹤、同案件工作有排序與互斥；真人切換後禁止新 AI 發送授權，並量測在途訊息的邊界。</td></tr>
         <tr><td>Showcase 與評估</td><td>真實 LINE、一般／VVIP 合成身分與客服網頁；準備固定問題集與操作劇本。</td><td>展示四個目標，記錄正確率、越權阻擋、轉接後誤回覆、回覆時間、模型 token 與費用；報告實測結果，不預填達標數字。</td></tr>
       </tbody>
     </table></div>
     <h3>維護與擴充如何分工</h3>
-    <p><code>domain/</code> 放案件與權限規則；後續的應用服務串接儲存、Agent 與發送介面；<code>api/</code> 處理 HTTP；<code>integrations/</code> 包裝 LINE、Firestore 與模型等外部服務。只有前述既有目錄與狀態機已存在，其餘仍待建置。</p>
+    <p><code>domain/</code> 放案件與權限規則；後續的應用服務串接儲存、Agent 與發送介面；<code>api/</code> 處理 HTTP；<code>integrations/</code> 包裝 LINE、Firestore、Vertex AI 與 BigQuery 等外部服務。只有前述既有目錄與狀態機已存在，其餘仍待建置。</p>
     <p>未來 MCP 只包裝相同業務服務；主動式客服可由 Scheduler 觸發另一個工作入口，共用工具、訂單權限、發送限流與紀錄。另行檢查主動訊息的使用者同意、可推播資格與去重，不直接重播被動客服 Prompt。</p>
     <div class="note"><p><strong>圖表看完後的下一步：</strong>先核對狀態機的十五項整體測試；通過後開始本機合成事件流程。LINE 帳號尚未備妥，不阻擋這條工作線。</p></div>
   </section>
 
   <footer>
-    <p>依據：本次對話的決策、目前專案原始碼與使用者貼回的驗證結果。此文件是 2026-11-05 的設計快照，不是自動更新的部署清單。</p>
-    <p>官方機制查核：ADK Session／State／Memory 分別管理單次互動與跨 Session 資訊；ADK Context compression 提供 Context 壓縮配置；Cloud Tasks 與 Cloud Run 支援以受驗證請求執行非同步工作。以上機制可用，不代表本專案已接入或部署。</p>
-    <p>官方來源：<code>https://adk.dev/sessions/</code>、<code>https://adk.dev/context/compaction/</code>、<code>https://docs.cloud.google.com/run/docs/triggering/using-tasks</code>。</p>
-    <p>圖表格式：四張靜態 1280×720 SVG，內嵌於此 HTML；無 JavaScript。字型使用 Google Fonts，無網路時使用系統備援字型。</p>
+    <p>依據：本次對話的決策、目前專案原始碼與使用者貼回的驗證結果。此文件是 2026-11-10 的設計快照，不是自動更新的部署清單。</p>
+    <p>官方機制查核：ADK Session／State／Memory 分別管理單次互動與跨 Session 資訊，內建 SessionService 只有記憶體、Vertex AI 與關聯式資料庫三種；ADK Context compression 提供 Context 壓縮配置；Cloud Run 預設只在處理請求時配置 CPU，Cloud Tasks 以受驗證請求執行非同步工作；LINE webhook 需在 2 秒內回應，reply token 須在一分鐘內使用且只能用一次，push 計入每月訊息額度；BigQuery 同一張表的並行交易會直接失敗。以上機制可用或限制成立，不代表本專案已接入或部署。</p>
+    <p>官方來源：<code>https://adk.dev/sessions/</code>、<code>https://adk.dev/context/compaction/</code>、<code>https://docs.cloud.google.com/run/docs/triggering/using-tasks</code>、<code>https://adk.dev/sessions/session/</code>、<code>https://developers.line.biz/en/docs/messaging-api/receiving-messages/</code>、<code>https://developers.line.biz/en/reference/messaging-api/nojs/</code>、<code>https://docs.cloud.google.com/run/docs/configuring/billing-settings</code>、<code>https://docs.cloud.google.com/bigquery/docs/data-manipulation-language</code>、<code>https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale/memory-bank/setup</code>。</p>
+    <p>圖表格式：七張靜態 SVG，寬 1280、高 560 到 800，內嵌於此 HTML；無 JavaScript。字型使用 Google Fonts，無網路時使用系統備援字型。</p>
   </footer>
 </main>
 </body>
