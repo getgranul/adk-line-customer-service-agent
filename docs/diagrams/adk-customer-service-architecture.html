@@ -67,7 +67,7 @@
     <p class="eyebrow">ARCHITECTURE REVIEW · 2026-11-10</p>
     <h1>ADK Customer Service Agent<br>執行架構與建置相依性</h1>
     <p>一週內完成可操作、可說明設計取捨的 LINE AI 客服展示。先在本機驗證客服核心，再接 LINE、持久化與 Cloud Run；你親手執行指令，每一步都對照實際結果。</p>
-    <div class="note"><p><strong>你現在的位置：</strong>本機 HTTP 與六項 LINE 驗簽測試已通過；客服狀態機程式與九項測試已寫入，尚待執行。專案已建立 Git，第一個 commit 為 cb15b47。LINE 帳號與 Webhook 串接延後。下方部署架構是 2026-11-10 架構審查後的目標設計，尚未部署。</p></div>
+    <div class="note"><p><strong>你現在的位置：</strong>本機 HTTP 已回應；驗簽與客服狀態機共十五項測試已通過。專案已建立 Git，第一個 commit 為 cb15b47。LINE 帳號與 Webhook 串接延後。下方部署架構是 2026-11-10 架構審查後的目標設計，尚未部署。</p></div>
   </header>
   <nav aria-label="圖表導覽">
     <a href="#choices">已確認與待確認選型</a>
@@ -384,7 +384,7 @@
       <defs><marker id="state-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs>
       <rect x="0" y="0" width="1280" height="720" fill="#f5f5f5"/>
       <text x="48" y="40" class="diagram-title">轉接先封鎖一般 AI 回覆，再處理真人進駐</text>
-      <text x="48" y="72" class="muted">對照目前 conversation.py · 規則與九項測試已寫入，測試結果待回報</text>
+      <text x="48" y="72" class="muted">對照目前 conversation.py · 規則與九項測試已通過</text>
       <path d="M 304 336 H 336 Q 344 336 344 328 V 176 Q 344 168 352 168 H 432" class="edge" marker-end="url(#state-arrow)"/>
       <rect x="360" y="236" width="56" height="20" class="label-mask"/><text x="388" y="252" text-anchor="middle">VVIP</text>
       <line x1="304" y1="368" x2="784" y2="368" class="edge" marker-end="url(#state-arrow)"/>
@@ -442,7 +442,7 @@
       <path d="M 1040 184 V 588 Q 1040 596 1032 596 H 864" class="edge async" marker-end="url(#dependency-arrow)"/>
 
       <rect x="64" y="112" width="224" height="72" rx="6" class="box"/>
-      <text x="80" y="140" class="name">本機 HTTP、驗簽、狀態規則</text><text x="80" y="164" class="muted">驗簽 6 項通過；狀態機待測</text>
+      <text x="80" y="140" class="name">本機 HTTP、驗簽、狀態規則</text><text x="80" y="164" class="muted">15 項測試通過</text>
       <rect x="352" y="112" width="224" height="72" rx="6" class="box"/>
       <text x="368" y="140" class="name">GCP 專案與憑證</text><text x="368" y="164" class="muted">待做：另建 LINE 客服專案</text>
       <rect x="640" y="112" width="224" height="72" rx="6" class="box"/>
@@ -469,7 +469,7 @@
       <thead><tr><th>工作</th><th>前提與產出</th><th>通過標準</th></tr></thead>
       <tbody>
         <tr><td>本機基礎與驗簽</td><td>現有 Python 虛擬環境、HTTP 入口與原始內容簽章驗證。</td><td>已取得 <code>/healthz</code> HTTP 200，以及使用者回報的六項測試 <code>OK</code>。</td></tr>
-        <tr><td>客服狀態規則</td><td>現有狀態機；先驗證合法切換與舊 AI 回覆失效。</td><td>九項新增測試待執行；加上驗簽應共十五項通過。這只驗證純規則，不證明分散式競爭已解決。</td></tr>
+        <tr><td>客服狀態規則</td><td>現有狀態機；先驗證合法切換與舊 AI 回覆失效。</td><td>九項狀態機測試與六項驗簽測試共十五項已通過。這只驗證純規則，不證明分散式競爭已解決。</td></tr>
         <tr><td>本機流程與持久化</td><td>狀態規則通過後，先用合成事件、明確標為測試用的儲存介面走流程，再接 Firestore；定義資料模型與交易。ADK Session 由 Vertex AI 代管，不在 Firestore 實作。</td><td>同案件訊息能保存、重啟能還原、不同客人無法互查訂單；相同事件重送不造成重複處理。測試替身不能作為雲端完成證據。</td></tr>
         <tr><td>ADK、Tools 與條款檢索</td><td>先改用 uv 並安裝 ADK、建立 LINE 客服專用的 GCP 專案；合成會員與訂單、腳本產生的條款 PDF 與建置時索引、Vertex AI Session 與 Memory Bank；工具使用可信身分，不接受模型自行指定客戶。</td><td>一般會員與 VVIP 回答符合各自政策；查別人訂單被拒；多輪追問、代名詞與跨案件必要記憶可驗證；長對話受 Context 預算限制。</td></tr>
         <tr><td>真人客服網頁</td><td>共用案件與訊息服務，加入登入、認領者驗證與發送介面。</td><td>真人完整看到客人與 AI 訊息；真人回覆保存；兩位客服不能同時認領；只有授權客服能釋放案件或結案。</td></tr>
@@ -481,7 +481,7 @@
     <h3>維護與擴充如何分工</h3>
     <p><code>domain/</code> 放案件與權限規則；後續的應用服務串接儲存、Agent 與發送介面；<code>api/</code> 處理 HTTP；<code>integrations/</code> 包裝 LINE、Firestore、Vertex AI 與 BigQuery 等外部服務。只有前述既有目錄與狀態機已存在，其餘仍待建置。</p>
     <p>未來 MCP 只包裝相同業務服務；主動式客服可由 Scheduler 觸發另一個工作入口，共用工具、訂單權限、發送限流與紀錄。另行檢查主動訊息的使用者同意、可推播資格與去重，不直接重播被動客服 Prompt。</p>
-    <div class="note"><p><strong>圖表看完後的下一步：</strong>先核對狀態機的十五項整體測試；通過後開始本機合成事件流程。LINE 帳號尚未備妥，不阻擋這條工作線。</p></div>
+    <div class="note"><p><strong>圖表看完後的下一步：</strong>十五項測試已通過，下一步是本機合成事件流程。LINE 帳號尚未備妥，不阻擋這條工作線。</p></div>
   </section>
 
   <footer>
