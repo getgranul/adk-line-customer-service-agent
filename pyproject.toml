@@ -9,7 +9,7 @@ description = "A LINE customer service agent with explicit human handoff."
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi==0.162.0",
-    "google-adk>=2.14.0",
+    "google-adk[gcp]>=2.14.0",
     "uvicorn==0.54.0",
 ]
 
