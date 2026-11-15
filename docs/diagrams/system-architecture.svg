@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="system-architecture-title system-architecture-desc" id="system-architecture-root">
+        <title id="system-architecture-title">LINE AI 客服 Agent 系統架構</title>
+        <desc id="system-architecture-desc">LINE 訊息由 Cloud Run 入口服務驗簽並存入 Firestore，再透過 Cloud Tasks 交給只接受 IAM 呼叫的 ADK 客服 Worker；Worker 呼叫 global 端點的 Gemini，並使用 asia-east1 的 Agent Runtime 保存 Session 與 Memory Bank，以交易讀寫 Firestore，用 push 回覆客人，處理事件寫入 BigQuery；真人客服透過同一個入口服務的客服網頁接手。</desc>
+        <defs>
+      <style>#system-architecture-root { font-family: 'Geist', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; color: #2d3142; }
+      #system-architecture-root .diagram-container { width: 100%; overflow-x: auto; }
+      #system-architecture-root .caption { font-size: 0.8rem; color: #4f5d75; line-height: 1.7; margin-top: 1rem; max-width: 60rem; }
+      #system-architecture-root .caption code { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 0.92em; }
+      #system-architecture-root text { font-family: 'Geist', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; font-size: 12px; fill: #2d3142; }
+      #system-architecture-root .name { font-weight: 600; }
+      #system-architecture-root .sub { fill: #4f5d75; }
+      #system-architecture-root .mono { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 9px; fill: #4f5d75; }
+      #system-architecture-root .tag { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 7px; letter-spacing: 0.08em; text-anchor: middle; }
+      #system-architecture-root .label { font-weight: 500; fill: #5a6580; text-anchor: middle; }
+      #system-architecture-root .label-mono { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 8px; letter-spacing: 0.06em; fill: #5a6580; text-anchor: middle; }
+      #system-architecture-root .eyebrow-svg { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 8px; letter-spacing: 0.14em; fill: #5a6580; }
+      #system-architecture-root .mask { fill: #f5f5f5; }
+      #system-architecture-root .edge { fill: none; stroke: #4f5d75; stroke-width: 1.2; }
+      #system-architecture-root .edge-link { fill: none; stroke: #2e5aa8; stroke-width: 1.2; }
+      #system-architecture-root .dashed { stroke-dasharray: 5,4; }
+      #system-architecture-root .backend { fill: #ffffff; stroke: #2d3142; stroke-width: 1; }
+      #system-architecture-root .focal { fill: rgba(191,69,32,0.08); stroke: #bf4520; stroke-width: 1; }
+      #system-architecture-root .store { fill: rgba(45,49,66,0.05); stroke: #4f5d75; stroke-width: 1; }
+      #system-architecture-root .external { fill: rgba(45,49,66,0.03); stroke: rgba(45,49,66,0.30); stroke-width: 1; }
+      #system-architecture-root .zone { fill: rgba(45,49,66,0.02); stroke: rgba(45,49,66,0.10); stroke-width: 0.8; }
+      #system-architecture-root .tag-box { fill: transparent; stroke: rgba(45,49,66,0.40); stroke-width: 0.8; }
+      #system-architecture-root .tag-box-focal { fill: transparent; stroke: rgba(191,69,32,0.40); stroke-width: 0.8; }
+      #system-architecture-root .hairline { stroke: rgba(45,49,66,0.10); stroke-width: 0.8; }
+      @media print {
+#system-architecture-root .diagram-container { overflow-x: visible; }
+}</style>
+          <marker id="system-architecture-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="system-architecture-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- Zone: GCP project boundary (drawn before arrows and nodes) -->
+        <rect x="252" y="136" width="1008" height="392" rx="8" class="zone"/>
+        <rect x="264" y="140" width="204" height="12" rx="2" class="mask"/>
+        <text x="366" y="149" class="eyebrow-svg" text-anchor="middle">GCP PROJECT · ADK-LINE-CS-AGENT</text>
+
+        <!-- Connectors (drawn before nodes) -->
+        <!-- Worker -> LINE: push reply, routed above the zone -->
+        <path d="M 892,168 V 128 Q 892,120 884,120 H 124 Q 116,120 116,128 V 168" class="edge-link" marker-end="url(#system-architecture-arrow-link)"/>
+        <rect x="470" y="98" width="68" height="16" rx="2" class="mask"/>
+        <text x="504" y="110" class="label">push 回覆</text>
+
+        <!-- LINE -> entry: webhook -->
+        <line x1="196" y1="208" x2="268" y2="208" class="edge-link" marker-end="url(#system-architecture-arrow-link)"/>
+        <rect x="202" y="186" width="60" height="16" rx="2" class="mask"/>
+        <text x="232" y="198" class="label">Webhook</text>
+
+        <!-- human agent -> entry: web console -->
+        <line x1="196" y1="448" x2="268" y2="448" class="edge-link" marker-end="url(#system-architecture-arrow-link)"/>
+        <rect x="204" y="426" width="56" height="16" rx="2" class="mask"/>
+        <text x="232" y="438" class="label">網頁操作</text>
+
+        <!-- entry -> Cloud Tasks: enqueue -->
+        <line x1="468" y1="208" x2="540" y2="208" class="edge dashed" marker-end="url(#system-architecture-arrow)"/>
+        <rect x="476" y="186" width="56" height="16" rx="2" class="mask"/>
+        <text x="504" y="198" class="label">建立工作</text>
+
+        <!-- entry -> Firestore -->
+        <line x1="468" y1="448" x2="540" y2="448" class="edge" marker-end="url(#system-architecture-arrow)"/>
+        <rect x="488" y="426" width="32" height="16" rx="2" class="mask"/>
+        <text x="504" y="438" class="label">讀寫</text>
+
+        <!-- Cloud Tasks -> Worker -->
+        <line x1="720" y1="208" x2="792" y2="208" class="edge dashed" marker-end="url(#system-architecture-arrow)"/>
+        <rect x="738" y="190" width="36" height="12" rx="2" class="mask"/>
+        <text x="756" y="199" class="label-mono">OIDC</text>
+
+        <!-- Worker -> Gemini -->
+        <line x1="992" y1="208" x2="1064" y2="208" class="edge-link" marker-end="url(#system-architecture-arrow-link)"/>
+        <rect x="1000" y="186" width="56" height="16" rx="2" class="mask"/>
+        <text x="1028" y="198" class="label">模型推理</text>
+
+        <!-- Worker -> Agent Runtime -->
+        <line x1="892" y1="248" x2="892" y2="408" class="edge-link" marker-end="url(#system-architecture-arrow-link)"/>
+        <rect x="900" y="360" width="96" height="16" rx="2" class="mask"/>
+        <text x="948" y="372" class="label">Session、記憶</text>
+
+        <!-- Worker -> Firestore -->
+        <path d="M 842,248 V 320 Q 842,328 834,328 H 638 Q 630,328 630,336 V 408" class="edge" marker-end="url(#system-architecture-arrow)"/>
+        <rect x="708" y="306" width="56" height="16" rx="2" class="mask"/>
+        <text x="736" y="318" class="label">交易讀寫</text>
+
+        <!-- Worker -> BigQuery -->
+        <path d="M 942,248 V 320 Q 942,328 950,328 H 1146 Q 1154,328 1154,336 V 408" class="edge dashed" marker-end="url(#system-architecture-arrow)"/>
+        <rect x="1020" y="306" width="56" height="16" rx="2" class="mask"/>
+        <text x="1048" y="318" class="label">處理事件</text>
+
+        <!-- Nodes -->
+        <!-- LINE platform -->
+        <rect x="36" y="168" width="160" height="80" rx="6" class="mask"/>
+        <rect x="36" y="168" width="160" height="80" rx="6" class="external"/>
+        <rect x="48" y="176" width="48" height="12" rx="2" class="tag-box"/>
+        <text x="72" y="185" class="tag">EXTERNAL</text>
+        <text x="48" y="208" class="name">LINE 平台</text>
+        <text x="48" y="226" class="sub">客人沿用原本的聊天室</text>
+        <text x="48" y="242" class="sub">Webhook 2 秒內回應</text>
+
+        <!-- Human agent -->
+        <rect x="36" y="408" width="160" height="80" rx="6" class="mask"/>
+        <rect x="36" y="408" width="160" height="80" rx="6" class="external"/>
+        <rect x="48" y="416" width="48" height="12" rx="2" class="tag-box"/>
+        <text x="72" y="425" class="tag">EXTERNAL</text>
+        <text x="48" y="448" class="name">真人客服</text>
+        <text x="48" y="466" class="sub">認領、回覆</text>
+        <text x="48" y="482" class="sub">交回 AI、結案</text>
+
+        <!-- Cloud Run entry service -->
+        <rect x="268" y="168" width="200" height="320" rx="6" class="mask"/>
+        <rect x="268" y="168" width="200" height="320" rx="6" class="backend"/>
+        <rect x="280" y="176" width="52" height="12" rx="2" class="tag-box"/>
+        <text x="306" y="185" class="tag">CLOUD RUN</text>
+        <text x="280" y="212" class="name">入口服務</text>
+        <text x="280" y="232" class="sub">驗簽 → 存事件 → 建立工作</text>
+        <text x="280" y="250" class="sub">存好才回 HTTP 200</text>
+        <text x="280" y="268" class="mono">asia-east1</text>
+        <line x1="280" y1="340" x2="456" y2="340" class="hairline"/>
+        <text x="280" y="432" class="name">客服網頁與操作 API</text>
+        <text x="280" y="452" class="sub">Google 帳號登入，後端驗證身分</text>
+        <text x="280" y="470" class="sub">真人回覆先保存再 push</text>
+
+        <!-- Cloud Tasks -->
+        <rect x="540" y="168" width="180" height="80" rx="6" class="mask"/>
+        <rect x="540" y="168" width="180" height="80" rx="6" class="external"/>
+        <rect x="552" y="176" width="36" height="12" rx="2" class="tag-box"/>
+        <text x="570" y="185" class="tag">QUEUE</text>
+        <text x="552" y="208" class="name">Cloud Tasks</text>
+        <text x="552" y="226" class="sub">排隊、重試，可能重複投遞</text>
+        <text x="552" y="242" class="mono">asia-east1</text>
+
+        <!-- ADK worker (focal) -->
+        <rect x="792" y="168" width="200" height="80" rx="6" class="mask"/>
+        <rect x="792" y="168" width="200" height="80" rx="6" class="focal"/>
+        <rect x="804" y="176" width="52" height="12" rx="2" class="tag-box-focal"/>
+        <text x="830" y="185" class="tag" fill="#bf4520">CLOUD RUN</text>
+        <text x="804" y="208" class="name">ADK 客服 Worker</text>
+        <text x="804" y="226" class="sub">只接受 IAM 呼叫 · asia-east1</text>
+        <text x="804" y="242" class="sub">狀態檢查、Tools、檢索、摘要</text>
+
+        <!-- Gemini -->
+        <rect x="1064" y="168" width="180" height="80" rx="6" class="mask"/>
+        <rect x="1064" y="168" width="180" height="80" rx="6" class="external"/>
+        <rect x="1076" y="176" width="52" height="12" rx="2" class="tag-box"/>
+        <text x="1102" y="185" class="tag">VERTEX AI</text>
+        <text x="1076" y="208" class="name">Gemini 模型</text>
+        <text x="1076" y="224" class="mono">gemini-3.5-flash</text>
+        <text x="1076" y="242" class="sub">global 端點</text>
+
+        <!-- Firestore -->
+        <rect x="540" y="408" width="180" height="96" rx="6" class="mask"/>
+        <rect x="540" y="408" width="180" height="96" rx="6" class="store"/>
+        <rect x="552" y="416" width="36" height="12" rx="2" class="tag-box"/>
+        <text x="570" y="425" class="tag">STORE</text>
+        <text x="552" y="448" class="name">Firestore</text>
+        <text x="552" y="466" class="sub">案件狀態、完整訊息</text>
+        <text x="552" y="482" class="sub">待發送、去重、處理中登記</text>
+        <text x="552" y="496" class="mono">asia-east1</text>
+
+        <!-- Agent Runtime -->
+        <rect x="792" y="408" width="200" height="96" rx="6" class="mask"/>
+        <rect x="792" y="408" width="200" height="96" rx="6" class="store"/>
+        <rect x="804" y="416" width="52" height="12" rx="2" class="tag-box"/>
+        <text x="830" y="425" class="tag">VERTEX AI</text>
+        <text x="804" y="448" class="name">Agent Runtime</text>
+        <text x="804" y="466" class="sub">Session：案件內對話</text>
+        <text x="804" y="482" class="sub">Memory Bank：跨案件記憶</text>
+        <text x="804" y="496" class="mono">asia-east1</text>
+
+        <!-- BigQuery -->
+        <rect x="1064" y="408" width="180" height="80" rx="6" class="mask"/>
+        <rect x="1064" y="408" width="180" height="80" rx="6" class="store"/>
+        <rect x="1076" y="416" width="52" height="12" rx="2" class="tag-box"/>
+        <text x="1102" y="425" class="tag">ANALYTICS</text>
+        <text x="1076" y="448" class="name">BigQuery</text>
+        <text x="1076" y="466" class="sub">每輪處理事件</text>
+        <text x="1076" y="482" class="sub">延遲、token、結果</text>
+        <text x="1076" y="496" class="mono">asia-east1</text>
+
+        <!-- Legend strip -->
+        <line x1="36" y1="584" x2="1244" y2="584" class="hairline"/>
+        <text x="36" y="608" class="eyebrow-svg">LEGEND</text>
+
+        <line x1="36" y1="636" x2="68" y2="636" class="edge-link" marker-end="url(#system-architecture-arrow-link)"/>
+        <text x="80" y="640" class="sub">API 呼叫</text>
+        <line x1="164" y1="636" x2="196" y2="636" class="edge" marker-end="url(#system-architecture-arrow)"/>
+        <text x="208" y="640" class="sub">資料讀寫</text>
+        <line x1="292" y1="636" x2="324" y2="636" class="edge dashed" marker-end="url(#system-architecture-arrow)"/>
+        <text x="336" y="640" class="sub">非同步工作</text>
+
+        <rect x="436" y="628" width="24" height="16" rx="4" class="zone"/>
+        <text x="472" y="640" class="sub">GCP 專案邊界</text>
+        <rect x="584" y="628" width="24" height="16" rx="4" class="backend"/>
+        <text x="620" y="640" class="sub">Cloud Run 服務</text>
+        <rect x="740" y="628" width="24" height="16" rx="4" class="focal"/>
+        <text x="776" y="640" class="sub">AI 推理核心</text>
+        <rect x="876" y="628" width="24" height="16" rx="4" class="store"/>
+        <text x="912" y="640" class="sub">資料儲存</text>
+        <rect x="992" y="628" width="24" height="16" rx="4" class="external"/>
+        <text x="1028" y="640" class="sub">代管服務與外部平台</text>
+      </svg>

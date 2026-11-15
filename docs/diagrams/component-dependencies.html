@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE AI 客服 Agent｜元件相依</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Geist', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      background: #f5f5f5;
+      color: #2d3142;
+      min-height: 100vh;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1360px; width: 100%; margin: 0 auto; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: 'Geist Mono', ui-monospace, monospace;
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #4f5d75;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: 'Instrument Serif', 'Noto Serif TC', serif;
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      line-height: 1.3;
+      margin-bottom: 1.5rem;
+    }
+    .caption { font-size: 0.8rem; color: #4f5d75; line-height: 1.7; margin-top: 1rem; max-width: 60rem; }
+    .caption code { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 0.92em; }
+
+    svg { width: 100%; min-width: 1280px; display: block; }
+    svg text { font-family: 'Geist', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; font-size: 12px; fill: #2d3142; }
+    svg .name { font-weight: 600; text-anchor: middle; }
+    svg .sub { fill: #4f5d75; }
+    svg .rank { fill: #4f5d75; font-weight: 500; }
+    svg .mono { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 9px; fill: #4f5d75; text-anchor: middle; }
+    svg .tag { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 7px; letter-spacing: 0.08em; text-anchor: middle; }
+    svg .badge { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 8px; text-anchor: middle; }
+    svg .eyebrow-svg { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 8px; letter-spacing: 0.14em; fill: #5a6580; }
+    svg .mask { fill: #f5f5f5; }
+    svg .edge { fill: none; stroke: #4f5d75; stroke-width: 1; }
+    svg .internal { fill: #ffffff; stroke: #2d3142; stroke-width: 1; }
+    svg .leaf { fill: rgba(45,49,66,0.05); stroke: #4f5d75; stroke-width: 0.8; }
+    svg .external { fill: rgba(45,49,66,0.03); stroke: rgba(45,49,66,0.30); stroke-width: 1; }
+    svg .tag-box { fill: transparent; stroke: rgba(45,49,66,0.40); stroke-width: 0.8; }
+    svg .hairline { stroke: rgba(45,49,66,0.10); stroke-width: 0.8; }
+
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Dependency graph · LINE AI 客服 Agent</p>
+    <h1>改一個元件之前，先看誰依賴它</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="component-dependencies-title component-dependencies-desc">
+        <title id="component-dependencies-title">LINE AI 客服 Agent 元件相依圖</title>
+        <desc id="component-dependencies-desc">兩個入口 adk web 與 HTTP 服務都依賴 Agent 定義；Agent 定義依賴 Function Tools 與 Vertex AI；Function Tools 與 HTTP 入口都依賴業務服務；業務服務依賴案件與權限規則，並透過外部服務包裝存取 LINE、Firestore、Cloud Tasks、BigQuery 與 Vertex AI；案件與權限規則不依賴任何其他元件。</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- Rank labels (left margin) -->
+        <text x="40" y="128" class="rank">入口</text>
+        <text x="40" y="248" class="rank">Agent</text>
+        <text x="40" y="368" class="rank">業務與規則</text>
+        <text x="40" y="488" class="rank">外部服務</text>
+
+        <!-- Connectors (drawn before nodes) -->
+        <!-- adk web entry -> agent definition -->
+        <line x1="268" y1="152" x2="268" y2="216" class="edge" marker-end="url(#arrow)"/>
+        <!-- HTTP entry -> agent definition -->
+        <path d="M 770,152 V 176 Q 770,184 762,184 H 340 Q 332,184 332,192 V 216" class="edge" marker-end="url(#arrow)"/>
+        <!-- HTTP entry -> business services -->
+        <line x1="820" y1="152" x2="820" y2="336" class="edge" marker-end="url(#arrow)"/>
+        <!-- HTTP entry -> integrations -->
+        <path d="M 870,152 V 176 Q 870,184 878,184 H 1072 Q 1080,184 1080,192 V 336" class="edge" marker-end="url(#arrow)"/>
+        <!-- agent definition -> function tools -->
+        <line x1="400" y1="244" x2="460" y2="244" class="edge" marker-end="url(#arrow)"/>
+        <!-- agent definition -> Vertex AI -->
+        <line x1="268" y1="272" x2="268" y2="456" class="edge" marker-end="url(#arrow)"/>
+        <!-- function tools -> domain rules -->
+        <line x1="528" y1="272" x2="528" y2="336" class="edge" marker-end="url(#arrow)"/>
+        <!-- function tools -> business services -->
+        <path d="M 592,272 V 296 Q 592,304 600,304 H 764 Q 772,304 772,312 V 336" class="edge" marker-end="url(#arrow)"/>
+        <!-- business services -> domain rules -->
+        <line x1="720" y1="364" x2="660" y2="364" class="edge" marker-end="url(#arrow)"/>
+        <!-- business services -> integrations -->
+        <line x1="920" y1="364" x2="980" y2="364" class="edge" marker-end="url(#arrow)"/>
+        <!-- integrations -> LINE and GCP data services -->
+        <line x1="1112" y1="392" x2="1112" y2="456" class="edge" marker-end="url(#arrow)"/>
+        <!-- integrations -> Vertex AI -->
+        <path d="M 1048,392 V 416 Q 1048,424 1040,424 H 340 Q 332,424 332,432 V 456" class="edge" marker-end="url(#arrow)"/>
+
+        <!-- Rank 0 -->
+        <!-- adk web entry -->
+        <rect x="200" y="96" width="200" height="56" rx="6" class="mask"/>
+        <rect x="200" y="96" width="200" height="56" rx="6" class="internal"/>
+        <rect x="208" y="102" width="36" height="12" rx="2" class="tag-box"/>
+        <text x="226" y="111" class="tag">ENTRY</text>
+        <rect x="364" y="104" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="378" y="113" class="badge">0 IN</text>
+        <text x="300" y="132" class="name">adk web 入口</text>
+        <text x="300" y="146" class="mono">adk_agents/line_cs_agent</text>
+
+        <!-- HTTP entry -->
+        <rect x="720" y="96" width="200" height="56" rx="6" class="mask"/>
+        <rect x="720" y="96" width="200" height="56" rx="6" class="internal"/>
+        <rect x="728" y="102" width="36" height="12" rx="2" class="tag-box"/>
+        <text x="746" y="111" class="tag">ENTRY</text>
+        <rect x="884" y="104" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="898" y="113" class="badge">0 IN</text>
+        <text x="820" y="132" class="name">HTTP 入口與 Worker</text>
+        <text x="820" y="146" class="mono">line_customer_service/api/</text>
+
+        <!-- Rank 1 -->
+        <!-- agent definition -->
+        <rect x="200" y="216" width="200" height="56" rx="6" class="mask"/>
+        <rect x="200" y="216" width="200" height="56" rx="6" class="internal"/>
+        <rect x="208" y="222" width="36" height="12" rx="2" class="tag-box"/>
+        <text x="226" y="231" class="tag">AGENT</text>
+        <rect x="364" y="224" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="378" y="233" class="badge">2 IN</text>
+        <text x="300" y="252" class="name">Agent 定義</text>
+        <text x="300" y="266" class="mono">agent/root.py</text>
+
+        <!-- function tools -->
+        <rect x="460" y="216" width="200" height="56" rx="6" class="mask"/>
+        <rect x="460" y="216" width="200" height="56" rx="6" class="internal"/>
+        <rect x="468" y="222" width="36" height="12" rx="2" class="tag-box"/>
+        <text x="486" y="231" class="tag">TOOLS</text>
+        <rect x="624" y="224" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="638" y="233" class="badge">1 IN</text>
+        <text x="560" y="252" class="name">Function Tools</text>
+        <text x="560" y="266" class="mono">agent/tools.py</text>
+
+        <!-- Rank 2 -->
+        <!-- domain rules (leaf: depends on nothing) -->
+        <rect x="460" y="336" width="200" height="56" rx="6" class="mask"/>
+        <rect x="460" y="336" width="200" height="56" rx="6" class="leaf"/>
+        <rect x="468" y="342" width="36" height="12" rx="2" class="tag-box"/>
+        <text x="486" y="351" class="tag">RULES</text>
+        <rect x="624" y="344" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="638" y="353" class="badge">2 IN</text>
+        <text x="560" y="372" class="name">案件與權限規則</text>
+        <text x="560" y="386" class="mono">domain/</text>
+
+        <!-- business services -->
+        <rect x="720" y="336" width="200" height="56" rx="6" class="mask"/>
+        <rect x="720" y="336" width="200" height="56" rx="6" class="internal"/>
+        <rect x="728" y="342" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="742" y="351" class="tag">SVC</text>
+        <rect x="884" y="344" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="898" y="353" class="badge">2 IN</text>
+        <text x="820" y="372" class="name">業務服務</text>
+        <text x="820" y="386" class="mono">services/</text>
+
+        <!-- integrations -->
+        <rect x="980" y="336" width="200" height="56" rx="6" class="mask"/>
+        <rect x="980" y="336" width="200" height="56" rx="6" class="internal"/>
+        <rect x="988" y="342" width="44" height="12" rx="2" class="tag-box"/>
+        <text x="1010" y="351" class="tag">ADAPTER</text>
+        <rect x="1144" y="344" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="1158" y="353" class="badge">2 IN</text>
+        <text x="1080" y="372" class="name">外部服務包裝</text>
+        <text x="1080" y="386" class="mono">integrations/</text>
+
+        <!-- Rank 3 -->
+        <!-- Vertex AI (external) -->
+        <rect x="200" y="456" width="200" height="56" rx="6" class="mask"/>
+        <rect x="200" y="456" width="200" height="56" rx="6" class="external"/>
+        <rect x="208" y="462" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="222" y="471" class="tag">EXT</text>
+        <rect x="364" y="464" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="378" y="473" class="badge">2 IN</text>
+        <text x="300" y="492" class="name">Vertex AI</text>
+        <text x="300" y="506" class="mono">Gemini · Agent Runtime</text>
+
+        <!-- LINE and GCP data services (external) -->
+        <rect x="980" y="456" width="200" height="56" rx="6" class="mask"/>
+        <rect x="980" y="456" width="200" height="56" rx="6" class="external"/>
+        <rect x="988" y="462" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="1002" y="471" class="tag">EXT</text>
+        <rect x="1144" y="464" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="1158" y="473" class="badge">1 IN</text>
+        <text x="1080" y="492" class="name">LINE 與 GCP 資料服務</text>
+        <text x="1080" y="506" class="mono">Firestore · Tasks · BigQuery</text>
+
+        <!-- Legend strip -->
+        <line x1="40" y1="584" x2="1240" y2="584" class="hairline"/>
+        <text x="40" y="608" class="eyebrow-svg">LEGEND</text>
+
+        <line x1="40" y1="636" x2="72" y2="636" class="edge" marker-end="url(#arrow)"/>
+        <text x="84" y="640" class="sub">依賴的一方 → 被依賴的一方</text>
+        <rect x="280" y="628" width="24" height="16" rx="4" class="internal"/>
+        <text x="316" y="640" class="sub">專案內的元件</text>
+        <rect x="424" y="628" width="24" height="16" rx="4" class="leaf"/>
+        <text x="460" y="640" class="sub">不依賴任何元件</text>
+        <rect x="580" y="628" width="24" height="16" rx="4" class="external"/>
+        <text x="616" y="640" class="sub">外部服務</text>
+        <rect x="700" y="630" width="28" height="12" rx="2" class="tag-box"/>
+        <text x="714" y="639" class="badge">2 IN</text>
+        <text x="740" y="640" class="sub">有 2 個元件依賴它，改動前要先檢查這些元件</text>
+      </svg>
+    </div>
+
+    <p class="caption">這張圖是設計上的相依方向，不記錄完成狀態；各項工作的進度見 <code>docs/implementation-plan.md</code>。路徑省略了共同的前綴 <code>src/line_customer_service/</code>；<code>adk_agents/line_cs_agent</code> 在專案根目錄。</p>
+  </div>
+</body>
+</html>
