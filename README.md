@@ -48,8 +48,10 @@ src/line_customer_service/
   domain/                      客服案件狀態機
   api/                         FastAPI 入口
   integrations/line/           LINE 簽章驗證
+  integrations/vertex_ai/      Agent Runtime 的查詢與建立
 scripts/                       連線檢查與雲端資源建立
-tests/                         測試
+tests/unit/                    單元測試，不需要網路
+tests/agent/                   Agent 情境測試，會呼叫 Gemini
 docs/                          實作計畫與圖
 ```
 
@@ -105,11 +107,27 @@ docs/                          實作計畫與圖
 
 ## 測試
 
-```powershell
-uv run python -m unittest discover -s tests
-```
+測試分兩層，另有程式碼檢查。
 
-最後一行是 `OK` 代表全部通過。這些測試不需要網路。
+1. 程式碼檢查。看到 `All checks passed!` 代表通過。
+
+   ```powershell
+   uv run ruff check
+   ```
+
+2. 單元測試，不需要網路。最後一行出現 `passed` 而且沒有 `failed` 代表通過。
+
+   ```powershell
+   uv run pytest
+   ```
+
+3. Agent 情境測試，用三個展示劇本實際呼叫 Gemini，需要 `.env` 與本機憑證，會產生少量 token 費用。它檢查工具呼叫、工具回傳與案件狀態，不比對模型的逐字回覆。
+
+   ```powershell
+   uv run pytest tests/agent
+   ```
+
+推送到 GitHub 後，[.github/workflows/ci.yml](.github/workflows/ci.yml) 會自動跑第 1、2 項。
 
 ## 維護與除錯
 
