@@ -16,7 +16,10 @@ import os
 
 import agentplatform
 
-# Runtime does not support the global endpoint; Gemini calls stay on global.
+from line_customer_service.integrations.vertex_ai.runtime import ensure_runtime
+
+# The location docs list global only for Sessions and Memory Bank, not for
+# Runtime, so the Runtime uses asia-east1. Gemini calls stay on global.
 LOCATION = "asia-east1"
 DISPLAY_NAME = "adk-line-cs-agent"
 
@@ -25,14 +28,10 @@ def main() -> None:
     project = os.environ["GOOGLE_CLOUD_PROJECT"]
     client = agentplatform.Client(project=project, location=LOCATION)
 
-    existing = list(client.runtimes.list(config={"filter": f'display_name="{DISPLAY_NAME}"'}))
-    if existing:
-        for runtime in existing:
-            print(f"已存在，不重複建立：{runtime.api_resource.name}")
-        return
-
-    runtime = client.runtimes.create(config={"display_name": DISPLAY_NAME})
-    print(f"已建立：{runtime.api_resource.name}")
+    result = ensure_runtime(client, DISPLAY_NAME)
+    label = "已建立" if result.created else "已存在，不重複建立"
+    for name in result.resource_names:
+        print(f"{label}：{name}")
 
 
 if __name__ == "__main__":
