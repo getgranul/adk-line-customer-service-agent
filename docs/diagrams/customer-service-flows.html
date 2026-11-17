@@ -66,7 +66,7 @@
   <header>
     <p class="eyebrow">DETAIL FLOWS · LINE AI 客服 Agent</p>
     <h1>LINE AI 客服 Agent<br>訊息處理、記憶、Agent 流程與狀態機</h1>
-    <p>五張細部流程圖，說明一則訊息怎麼被處理、資料存在哪一層、Agent 怎麼依身分分流、條款怎麼更新、案件狀態怎麼切換。這份文件只描述設計；系統架構見 <code>docs/diagrams/system-architecture.html</code>，進度與待辦見 <code>docs/implementation-plan.md</code>。</p>
+    <p>五張細部流程圖，說明一則訊息怎麼被處理、資料存在哪一層、Agent 怎麼依身分分流、條款怎麼更新、案件狀態怎麼切換。這份文件只描述設計；系統架構見 <code>docs/diagrams/system-architecture.html</code>。</p>
   </header>
   <nav aria-label="圖表導覽">
     
@@ -338,7 +338,7 @@
   </section>
 
   <footer>
-    <p>這份文件只描述設計，不記錄完成狀態；進度見 <code>docs/implementation-plan.md</code>。</p>
+    <p>這份文件只描述設計，不記錄完成狀態。</p>
     <p>官方機制查核：ADK Session／State／Memory 分別管理單次互動與跨 Session 資訊，內建 SessionService 只有記憶體、Vertex AI 與關聯式資料庫三種；ADK Context compression 提供 Context 壓縮配置；Cloud Run 預設只在處理請求時配置 CPU，Cloud Tasks 以受驗證請求執行非同步工作；LINE 在 2 秒內沒收到 webhook 回應記為逾時；push 支援重試鍵，24 小時內同一把鍵重傳不會重複傳送；push 計入每月訊息額度；BigQuery 同一張表的並行交易會直接失敗。</p>
     <p>官方來源：<code>https://adk.dev/sessions/</code>、<code>https://adk.dev/context/compaction/</code>、<code>https://docs.cloud.google.com/run/docs/triggering/using-tasks</code>、<code>https://adk.dev/sessions/session/</code>、<code>https://developers.line.biz/en/docs/messaging-api/receiving-messages/</code>、<code>https://developers.line.biz/en/docs/messaging-api/check-webhook-error-statistics/</code>、<code>https://developers.line.biz/en/docs/messaging-api/retrying-api-request/</code>、<code>https://developers.line.biz/en/reference/messaging-api/nojs/</code>、<code>https://docs.cloud.google.com/run/docs/configuring/billing-settings</code>、<code>https://docs.cloud.google.com/bigquery/docs/data-manipulation-language</code>、<code>https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale/memory-bank/setup</code>。</p>
     <p>圖表格式：五張靜態 SVG，寬 1280、高 560 到 800，內嵌於此 HTML；無 JavaScript。字型使用 Google Fonts，無網路時使用系統備援字型。</p>

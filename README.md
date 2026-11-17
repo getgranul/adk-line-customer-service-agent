@@ -2,7 +2,7 @@
 
 用 Google ADK 與 Gemini 建置的 LINE 電商客服 Agent，設計目標是部署在 Cloud Run、串接 LINE 官方帳號，並在需要時把案件轉交真人客服。會員、訂單與條款全部是合成資料。
 
-進度、待辦與驗證紀錄只記在 [docs/implementation-plan.md](docs/implementation-plan.md)，這份 README 與 `docs/diagrams/` 只描述設計與操作方式。
+這份 README 與 `docs/diagrams/` 描述設計與操作方式。
 
 ## 展示的能力
 
@@ -30,7 +30,7 @@
 - 案件狀態、真人認領、完整訊息、待發送紀錄集中在 Firestore；訂單、身分、權益不進任何一層記憶，每次都由 Tools 重新查詢。
 - Gemini 走 global 端點；其餘服務都在 asia-east1。
 
-可互動檢視的版本：[docs/diagrams/system-architecture.html](docs/diagrams/system-architecture.html)。訊息處理時序、記憶分層、Agent 處理流程、條款更新與客服狀態機見 [docs/diagrams/customer-service-flows.html](docs/diagrams/customer-service-flows.html)。各項架構決策的理由見 [docs/implementation-plan.md](docs/implementation-plan.md) 的「架構決策」一節。
+可互動檢視的版本：[docs/diagrams/system-architecture.html](docs/diagrams/system-architecture.html)。訊息處理時序、記憶分層、Agent 處理流程、條款更新與客服狀態機見 [docs/diagrams/customer-service-flows.html](docs/diagrams/customer-service-flows.html)。
 
 ## 元件相依
 
@@ -52,7 +52,7 @@ src/line_customer_service/
 scripts/                       連線檢查與雲端資源建立
 tests/unit/                    單元測試，不需要網路
 tests/agent/                   Agent 情境測試，會呼叫 Gemini
-docs/                          實作計畫與圖
+docs/                          架構圖與流程圖
 ```
 
 ## 安裝與執行
@@ -146,11 +146,19 @@ docs/                          實作計畫與圖
 - 重啟後找不到先前的對話：檢查 `--session_service_uri` 用的是完整資源名稱。
 - Windows 上 import `_sqlite3`、`cygrpc` 這類原生元件失敗：檢查 Windows 安全性裡的智慧型應用程式控制，它會擋下沒有簽章的 Python 原生元件。
 
+## 開發方式
+
+這個專案用 Claude Code 協作開發。
+
+- 架構選型、應用情境判斷、元件之間的相依關係由作者決定，每項決定先查證官方文件再定案。
+- 程式、測試與文件由 Claude Code 依作者的決定實作，每次提交前經作者審閱。
+- 雲端資源的建立、修改與部署由作者親手執行。
+- 程式碼檢查、單元測試、Agent 情境測試自動執行，通過後才進下一項工作。
+
 ## 文件
 
 | 文件 | 內容 |
 |---|---|
-| [docs/implementation-plan.md](docs/implementation-plan.md) | 目標、架構決策、任務順序、進度、待辦、驗證紀錄 |
 | [docs/diagrams/system-architecture.html](docs/diagrams/system-architecture.html) | 系統架構圖 |
 | [docs/diagrams/component-dependencies.html](docs/diagrams/component-dependencies.html) | 元件相依圖 |
 | [docs/diagrams/customer-service-flows.html](docs/diagrams/customer-service-flows.html) | 訊息處理時序、記憶分層、Agent 處理流程、條款更新、客服狀態機 |
