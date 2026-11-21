@@ -65,14 +65,14 @@
 <main>
   <header>
     <p class="eyebrow">DETAIL FLOWS · LINE AI 客服 Agent</p>
-    <h1>LINE AI 客服 Agent<br>訊息處理、記憶、Agent 流程與狀態機</h1>
+    <h1>LINE AI 客服 Agent<br>訊息處理、記憶、Agent 流程與 state machine</h1>
     <p>五張細部流程圖，說明一則訊息怎麼被處理、資料存在哪一層、Agent 怎麼依身分分流、條款怎麼更新、案件狀態怎麼切換。這份文件只描述設計；系統架構見 <code>docs/diagrams/system-architecture.html</code>。</p>
   </header>
   <nav aria-label="圖表導覽">
     
     <a href="#runtime">1. 訊息處理與記憶分層</a>
     <a href="#agent-flow">2. Agent 處理流程與條款更新</a>
-    <a href="#state">3. 客服狀態機</a>
+    <a href="#state">3. 客服 state machine</a>
     
   </nav>
 
@@ -245,7 +245,7 @@
       <li><strong>VVIP 的順序：</strong>由程式依會員等級觸發，不由模型決定。先切換轉接準備狀態，封鎖一般 AI 回覆；授權指定政策回覆；該階段結束後進入等待真人，非同步通知客服。發送失敗也不能自動回到 AI 模式。</li>
       <li><strong>情緒與能力判斷仍需評估。</strong>明確要求真人可用確定規則；嚴重情緒與能力不足可結合分類與工具結果，需用案例測試誤判率。模型不得只靠輸出特殊 Tag 改變案件狀態。</li>
     </ol>
-    <p>狀態機的布林判斷本身不構成併發鎖。「發送前再檢查」用 Firestore 交易比對模式與 revision，通過才寫入待發送紀錄；重試沿用同一筆待發送紀錄與同一把重試鍵。已交給外部 API 的訊息無法靠狀態切換撤回。</p>
+    <p>state machine 的布林判斷本身不構成併發鎖。「發送前再檢查」用 Firestore 交易比對模式與 revision，通過才寫入待發送紀錄；重試沿用同一筆待發送紀錄與同一把重試鍵。已交給外部 API 的訊息無法靠狀態切換撤回。</p>
     <h3>條款離線更新路徑</h3>
     <div class="diagram-container">
     <svg viewBox="0 0 1280 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-policy-title adk-customer-service-architecture-policy-desc">
@@ -293,7 +293,7 @@
   </section>
 
   <section id="state">
-    <h2>3. 客服狀態機：眼前這一步在做什麼</h2>
+    <h2>3. 客服 state machine：眼前這一步在做什麼</h2>
     <p>把「AI 能不能處理與回覆」寫成可測試的規則。相同規則之後供本機模擬、LINE 入口、ADK Worker 與客服網頁共用。</p>
     <div class="diagram-container">
     <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="adk-customer-service-architecture-state-title adk-customer-service-architecture-state-desc">
@@ -334,7 +334,7 @@
       <text x="640" y="696" class="muted">每次切換 revision + 1；舊 AI 工作不得沿用舊版本送出。</text>
     </svg></div>
     <p><strong>revision 的例子：</strong>AI 在版本 0 開始生成，客人要求真人後變成版本 1。舊工作完成時拿版本 0 比對最新狀態，就應放棄回覆；之後真人交回 AI，版本繼續增加，舊回覆也不會重新有效。</p>
-    <p>狀態機只定義合法切換與回覆判斷。客服身分驗證、認領者權限、資料庫交易、訊息排序與發送去重，由應用服務與持久化層負責；狀態機的單元測試不能證明分散式環境下的安全。</p>
+    <p>state machine 只定義合法切換與回覆判斷。客服身分驗證、認領者權限、資料庫交易、訊息排序與發送去重，由應用服務與持久化層負責；state machine 的單元測試不能證明分散式環境下的安全。</p>
   </section>
 
   <footer>

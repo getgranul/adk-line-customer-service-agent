@@ -30,7 +30,7 @@
 - 案件狀態、真人認領、完整訊息、待發送紀錄集中在 Firestore；訂單、身分、權益不進任何一層記憶，每次都由 Tools 重新查詢。
 - Gemini 走 global 端點；其餘服務都在 asia-east1。
 
-可互動檢視的版本：[docs/diagrams/system-architecture.html](docs/diagrams/system-architecture.html)。訊息處理時序、記憶分層、Agent 處理流程、條款更新與客服狀態機見 [docs/diagrams/customer-service-flows.html](docs/diagrams/customer-service-flows.html)。
+可互動檢視的版本：[docs/diagrams/system-architecture.html](docs/diagrams/system-architecture.html)。訊息處理時序、記憶分層、Agent 處理流程、條款更新與客服 state machine 見 [docs/diagrams/customer-service-flows.html](docs/diagrams/customer-service-flows.html)。
 
 ## 元件相依
 
@@ -45,7 +45,7 @@ adk_agents/line_cs_agent/      adk web 的入口，只匯入 Agent
 src/line_customer_service/
   agent/                       Agent 定義與 ADK Function Tools
   services/                    訂單、會員、權益查詢
-  domain/                      客服案件狀態機
+  domain/                      客服案件 state machine：案件的階段與切換規則
   api/                         FastAPI 入口
   integrations/line/           LINE 簽章驗證
   integrations/vertex_ai/      Agent Runtime 的查詢與建立
@@ -161,4 +161,4 @@ docs/                          架構圖與流程圖
 |---|---|
 | [docs/diagrams/system-architecture.html](docs/diagrams/system-architecture.html) | 系統架構圖 |
 | [docs/diagrams/component-dependencies.html](docs/diagrams/component-dependencies.html) | 元件相依圖 |
-| [docs/diagrams/customer-service-flows.html](docs/diagrams/customer-service-flows.html) | 訊息處理時序、記憶分層、Agent 處理流程、條款更新、客服狀態機 |
+| [docs/diagrams/customer-service-flows.html](docs/diagrams/customer-service-flows.html) | 訊息處理時序、記憶分層、Agent 處理流程、條款更新、客服 state machine |

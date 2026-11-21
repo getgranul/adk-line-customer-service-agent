@@ -103,7 +103,7 @@ def test_vvip_gets_free_return_shipping_and_is_handed_to_a_human() -> None:
     assert handoffs, "request_human_handoff was not called for a VVIP member"
     assert handoffs[0]["reason"] == "VVIP"
     # 現有程式的行為：模型呼叫轉接工具後停在轉接準備。
-    # 「狀態機接進 Agent」完成後，這裡改成等待真人，而且不依賴模型呼叫工具。
+    # 「state machine 接進 Agent」完成後，這裡改成等待真人，而且不依賴模型呼叫工具。
     assert result.state["case"]["mode"] == "HANDOFF_PREPARING"
 
 
