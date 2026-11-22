@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="component-dependencies-title component-dependencies-desc" id="component-dependencies-root">
         <title id="component-dependencies-title">LINE AI 客服 Agent 元件相依圖</title>
-        <desc id="component-dependencies-desc">兩個入口 adk web 與 HTTP 服務都依賴 Agent 定義；Agent 定義依賴 Function Tools 與 Vertex AI；Function Tools 與 HTTP 入口都依賴業務服務；業務服務依賴案件與權限規則，並透過外部服務包裝存取 LINE、Firestore、Cloud Tasks、BigQuery 與 Vertex AI；案件與權限規則不依賴任何其他元件。</desc>
+        <desc id="component-dependencies-desc">兩個入口 adk web 與 HTTP 服務都依賴 Agent 定義；Agent 定義依賴 Tools 與 callbacks、Vertex AI，並從外部服務包裝取得案件階段的儲存；Tools 與 callbacks、HTTP 入口都依賴業務服務；業務服務依賴案件與權限規則，並透過外部服務包裝存取 LINE、Firestore、Cloud Tasks、BigQuery 與 Vertex AI；案件與權限規則不依賴任何其他元件。</desc>
         <defs>
       <style>#component-dependencies-root { font-family: 'Geist', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; color: #2d3142; }
       #component-dependencies-root .diagram-container { width: 100%; overflow-x: auto; }
@@ -49,6 +49,8 @@
         <line x1="400" y1="244" x2="460" y2="244" class="edge" marker-end="url(#component-dependencies-arrow)"/>
         <!-- agent definition -> Vertex AI -->
         <line x1="268" y1="272" x2="268" y2="456" class="edge" marker-end="url(#component-dependencies-arrow)"/>
+        <!-- agent definition -> integrations (root.py picks the case state store); runs at y=424, between the y=412 and y=436 runs, so nothing crosses -->
+        <path d="M 400,260 H 422 Q 430,260 430,268 V 416 Q 430,424 438,424 H 1040 Q 1048,424 1048,416 V 392" class="edge" marker-end="url(#component-dependencies-arrow)"/>
         <!-- function tools -> domain rules -->
         <line x1="528" y1="272" x2="528" y2="336" class="edge" marker-end="url(#component-dependencies-arrow)"/>
         <!-- function tools -> business services -->
@@ -60,7 +62,7 @@
         <!-- integrations -> LINE and GCP data services -->
         <line x1="1112" y1="392" x2="1112" y2="456" class="edge" marker-end="url(#component-dependencies-arrow)"/>
         <!-- integrations -> Vertex AI -->
-        <path d="M 1048,392 V 416 Q 1048,424 1040,424 H 340 Q 332,424 332,432 V 456" class="edge" marker-end="url(#component-dependencies-arrow)"/>
+        <path d="M 1080,392 V 428 Q 1080,436 1072,436 H 340 Q 332,436 332,444 V 456" class="edge" marker-end="url(#component-dependencies-arrow)"/>
         <!-- integrations -> domain rules (store implementations follow the case-state contract defined in domain/) -->
         <path d="M 1016,392 V 404 Q 1016,412 1008,412 H 600 Q 592,412 592,404 V 392" class="edge" marker-end="url(#component-dependencies-arrow)"/>
 
@@ -103,8 +105,8 @@
         <text x="486" y="231" class="tag">TOOLS</text>
         <rect x="624" y="224" width="28" height="12" rx="2" class="tag-box"/>
         <text x="638" y="233" class="badge">1 IN</text>
-        <text x="560" y="252" class="name">Function Tools</text>
-        <text x="560" y="266" class="mono">agent/tools.py</text>
+        <text x="560" y="252" class="name">Tools 與 callbacks</text>
+        <text x="560" y="266" class="mono">agent/tools.py · callbacks.py</text>
 
         <!-- Rank 2 -->
         <!-- domain rules (leaf: depends on nothing) -->
@@ -133,7 +135,7 @@
         <rect x="988" y="342" width="44" height="12" rx="2" class="tag-box"/>
         <text x="1010" y="351" class="tag">ADAPTER</text>
         <rect x="1144" y="344" width="28" height="12" rx="2" class="tag-box"/>
-        <text x="1158" y="353" class="badge">2 IN</text>
+        <text x="1158" y="353" class="badge">3 IN</text>
         <text x="1080" y="372" class="name">外部服務包裝</text>
         <text x="1080" y="386" class="mono">integrations/</text>
 

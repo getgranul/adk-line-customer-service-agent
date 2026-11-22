@@ -2,18 +2,22 @@
 
 The customer identity always comes from the session's user_id, never from
 model arguments, so a customer cannot claim another identity or tier in chat.
+Case state lives in the case state store, keyed by the ADK session id; the ADK
+session state is not used for it.
 """
+
+from collections.abc import Callable
 
 from google.adk.tools import ToolContext
 
-from line_customer_service.domain.conversation import (
-    ConversationMode, ConversationState, HandoffReason, InvalidTransition,
-)
+from line_customer_service.domain.case_state_store import CaseStateStore, RevisionConflict
+from line_customer_service.domain.conversation import HandoffReason, InvalidTransition
 from line_customer_service.services.customer_service import (
     find_member_tier, find_owned_order, return_shipping_policy,
 )
 
-_CASE_STATE_KEY = "case"
+# VVIP 轉接由程式依會員等級觸發，模型不能自己發動
+_MODEL_HANDOFF_REASONS = [reason for reason in HandoffReason if reason != HandoffReason.VVIP]
 
 
 def lookup_order(order_id: str, tool_context: ToolContext) -> dict:
@@ -41,40 +45,27 @@ def get_member_benefits(tool_context: ToolContext) -> dict:
     return {"status": "ok", "member_tier": tier.value, "return_shipping": return_shipping_policy(tier)}
 
 
-def request_human_handoff(reason: str, tool_context: ToolContext) -> dict:
-    """Hand the case to a human agent and stop ordinary AI replies.
+def build_request_human_handoff(store: CaseStateStore) -> Callable[[str, ToolContext], dict]:
+    """Bind the handoff tool to a case state store; ADK reads the inner name and docstring."""
 
-    Args:
-        reason: One of HUMAN_REQUESTED, SEVERE_EMOTION, CAPABILITY_LIMIT, VVIP.
-    """
-    try:
-        handoff_reason = HandoffReason(reason)
-    except ValueError:
-        return {"status": "invalid_reason", "allowed": [r.value for r in HandoffReason]}
-    state = _load_case(tool_context)
-    try:
-        state = state.request_handoff(handoff_reason)
-    except InvalidTransition as error:
-        return {"status": "rejected", "mode": state.mode.value, "message": str(error)}
-    _save_case(tool_context, state)
-    return {"status": "ok", "mode": state.mode.value, "revision": state.revision}
+    def request_human_handoff(reason: str, tool_context: ToolContext) -> dict:
+        """Hand the case to a human agent and stop ordinary AI replies.
 
+        Args:
+            reason: One of HUMAN_REQUESTED, SEVERE_EMOTION, CAPABILITY_LIMIT.
+        """
+        allowed = [r.value for r in _MODEL_HANDOFF_REASONS]
+        if reason not in allowed:
+            return {"status": "invalid_reason", "allowed": allowed}
+        case_id = tool_context.session.id
+        state = store.load(case_id)
+        try:
+            handed_off = state.request_handoff(HandoffReason(reason))
+            store.save(case_id, handed_off, expected_revision=state.revision)
+        except InvalidTransition as error:
+            return {"status": "rejected", "mode": state.mode.value, "message": str(error)}
+        except RevisionConflict as error:
+            return {"status": "rejected", "mode": store.load(case_id).mode.value, "message": str(error)}
+        return {"status": "ok", "mode": handed_off.mode.value, "revision": handed_off.revision}
 
-def _load_case(tool_context: ToolContext) -> ConversationState:
-    saved = tool_context.state.get(_CASE_STATE_KEY)
-    if not saved:
-        return ConversationState()
-    reason = saved.get("handoff_reason")
-    return ConversationState(
-        mode=ConversationMode(saved["mode"]),
-        revision=saved["revision"],
-        handoff_reason=HandoffReason(reason) if reason else None,
-    )
-
-
-def _save_case(tool_context: ToolContext, state: ConversationState) -> None:
-    tool_context.state[_CASE_STATE_KEY] = {
-        "mode": state.mode.value,
-        "revision": state.revision,
-        "handoff_reason": state.handoff_reason.value if state.handoff_reason else None,
-    }
+    return request_human_handoff

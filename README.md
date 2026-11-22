@@ -43,10 +43,11 @@
 ```text
 adk_agents/line_cs_agent/      adk web 的入口，只匯入 Agent
 src/line_customer_service/
-  agent/                       Agent 定義與 ADK Function Tools
+  agent/                       Agent 定義、ADK Function Tools、依案件階段放行或擋下回覆的 callbacks
   services/                    訂單、會員、權益查詢
-  domain/                      客服案件 state machine：案件的階段與切換規則
+  domain/                      客服案件 state machine：案件的階段與切換規則；案件階段的存取介面
   api/                         FastAPI 入口
+  integrations/in_memory/      案件階段的記憶體版本儲存，重啟後清空
   integrations/line/           LINE 簽章驗證
   integrations/vertex_ai/      Agent Runtime 的查詢與建立
 scripts/                       連線檢查與雲端資源建立
@@ -121,7 +122,7 @@ docs/                          架構圖與流程圖
    uv run pytest
    ```
 
-3. Agent 情境測試，用三個展示劇本實際呼叫 Gemini，需要 `.env` 與本機憑證，會產生少量 token 費用。它檢查工具呼叫、工具回傳與案件狀態，不比對模型的逐字回覆。
+3. Agent 情境測試，用三個展示劇本與一段「客人要求真人」的轉接流程實際呼叫 Gemini，需要 `.env` 與本機憑證，會產生少量 token 費用。它檢查工具呼叫、工具回傳與案件階段，不比對模型的逐字回覆；轉接之後的回覆例外，必須剛好是程式送出的固定通知。
 
    ```powershell
    uv run pytest tests/agent
@@ -135,7 +136,9 @@ docs/                          架構圖與流程圖
 |---|---|
 | 修改合成會員、訂單、退貨運費政策 | [src/line_customer_service/services/customer_service.py](src/line_customer_service/services/customer_service.py) 的 `SYNTHETIC_MEMBERS`、`SYNTHETIC_ORDERS`、`_RETURN_SHIPPING_POLICY` |
 | 修改 Agent 的提示詞或模型 | [src/line_customer_service/agent/root.py](src/line_customer_service/agent/root.py) 的 `INSTRUCTION` 與 `MODEL` |
-| 修改轉接規則與案件狀態 | [src/line_customer_service/domain/conversation.py](src/line_customer_service/domain/conversation.py) |
+| 修改轉接規則與案件階段 | [src/line_customer_service/domain/conversation.py](src/line_customer_service/domain/conversation.py) |
+| 修改轉接後送給客人的固定通知、VVIP 那一則回覆的指示 | [src/line_customer_service/agent/callbacks.py](src/line_customer_service/agent/callbacks.py) 的 `HANDOFF_NOTICE` 與 `VVIP_REPLY_INSTRUCTION` |
+| 更換案件階段的儲存 | [src/line_customer_service/agent/root.py](src/line_customer_service/agent/root.py) 的 `case_state_store`；新的儲存要符合 [src/line_customer_service/domain/case_state_store.py](src/line_customer_service/domain/case_state_store.py) 的介面 |
 | 新增或修改 Tools | [src/line_customer_service/agent/tools.py](src/line_customer_service/agent/tools.py)，業務邏輯放在 `services/` |
 
 改完之後先跑測試。
